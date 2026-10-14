@@ -44,8 +44,7 @@
     "tools_other": "{{count}} tools",
     "signedIn": "Signed in",
     "next": "Next",
-    "pickOne": "Pick the site to use.",
-    "pickMany": "Pick up to {{max}} sites to compare."
+    "pickMany": "Turn off any site you don't want searched (up to {{max}} at a time)."
   },
   "prepare": {
     "title": "Prepare",

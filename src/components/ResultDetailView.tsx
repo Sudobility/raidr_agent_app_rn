@@ -16,6 +16,7 @@ import { Text, Button, Badge, List, ListItem } from '@sudobility/components-rn';
 import { useTranslation } from 'react-i18next';
 import type { ResultItem } from '@sudobility/raidr_agent_types';
 import { trackButtonClick } from '@/analytics';
+import { useSiteBadges } from '@/hooks/useSiteBadges';
 
 interface ResultDetailViewProps {
   item: ResultItem;
@@ -34,6 +35,10 @@ export default function ResultDetailView({
   reason,
 }: ResultDetailViewProps) {
   const { t } = useTranslation();
+  // The site's domain (`luma.com`), as on the cards; the catalog title
+  // ("Luma API") only until the domain is known.
+  const site =
+    useSiteBadges([item.apiHost])[item.apiHost]?.domain ?? item.siteTitle;
   const recipe = item.recipe;
   const pageUrl = item.pageUrl ?? '';
   const sourceUrl =
@@ -79,9 +84,9 @@ export default function ResultDetailView({
         <Text size='2xl' weight='bold' className='flex-1 mr-2'>
           {item.title}
         </Text>
-        {item.siteTitle ? (
+        {site ? (
           <Badge variant='primary' size='sm'>
-            {item.siteTitle}
+            {site}
           </Badge>
         ) : null}
       </View>
@@ -173,11 +178,11 @@ export default function ResultDetailView({
           className='mb-2'
           onPress={handleOpenSite}
           accessibilityLabel={t('resultDetail.openOn', {
-            site: item.siteTitle || t('resultDetail.theSite'),
+            site: site || t('resultDetail.theSite'),
           })}
         >
           {t('resultDetail.openOn', {
-            site: item.siteTitle || t('resultDetail.theSite'),
+            site: site || t('resultDetail.theSite'),
           })}
         </Button>
       ) : null}

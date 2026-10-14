@@ -16,6 +16,13 @@ prepare_react_native_project!
 # `pod install`. Keep them in CocoaPods mode so the check does not apply.
 $RNFirebaseDisableSPM = true
 
+# A macOS build. react-native.config.js reads this and drops every package
+# switched off for macOS (`macos: null`) from iOS's settings too, which is the
+# platform codegen reads here. Without it codegen listed RNFirebase's
+# TurboModules with no class behind them. macos/.xcode.env sets it for the
+# build's codegen phase.
+ENV['RN_MACOS_BUILD'] = '1'
+
 # Packages to exclude from macOS autolinking (not needed on desktop)
 EXCLUDED_PACKAGES = %w[
   @react-native-firebase/app
@@ -84,6 +91,19 @@ target 'RaidrAgent-macOS' do
     # so patch it here too, or the first build after an install compiles the
     # unpatched file and crashes at launch on a component macOS lacks.
     system({ 'PODS_ROOT' => installer.sandbox.root.to_s }, '/bin/sh', '-c', NIL_SAFE_PATCH_SCRIPT)
+
+    # A build can also regenerate it: ReactCodegen's "Generate Specs" phase
+    # reruns codegen when its inputs change (a new or updated native
+    # dependency), then compiles the fresh, unpatched file. Patch at the end of
+    # that phase so what ReactCodegen compiles is always the nil-safe one.
+    installer.pods_project.targets.each do |target|
+      next unless target.name == 'ReactCodegen'
+      target.shell_script_build_phases.each do |phase|
+        next unless phase.name.to_s.include?('Generate Specs')
+        next if phase.shell_script.include?('Patched RCTThirdPartyComponentsProvider')
+        phase.shell_script = "#{phase.shell_script}\n#{NIL_SAFE_PATCH_SCRIPT}"
+      end
+    end
 
     # Add a "Patch Nil-Safe Components" script phase to the main app target
     # so it runs every build AFTER codegen but BEFORE compile sources.

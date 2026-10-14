@@ -24,6 +24,7 @@ import {
   type SettingsSectionId,
 } from './settings/sections';
 import SettingsSectionView from './settings/SettingsSectionView';
+import { useAccountScrollsItself } from './settings/AccountSection';
 
 const API_KEYS = 'apiKeys';
 
@@ -32,6 +33,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   const agentMode = useSettingsStore(s => s.agentMode);
   const { effective } = useLlmKeys();
   const [chosen, setChosen] = useState<SettingsSectionId>('account');
+  const accountScrolls = useAccountScrollsItself();
 
   useEffect(() => {
     trackScreenView('Settings');
@@ -77,6 +79,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         )}
         detailTitle={t(SECTION_LABEL[chosen])}
         detail={<SettingsSectionView section={chosen} />}
+        detailScrolls={chosen === 'account' && accountScrolls}
       />
     </Screen>
   );

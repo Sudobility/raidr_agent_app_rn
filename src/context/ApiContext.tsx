@@ -76,9 +76,12 @@ async function makeRequest<T>(
 
   try {
     const json = await response.json();
-    if (response.ok) {
-      data = json as T;
-    } else {
+    // Kept on errors too: the API answers them with a `BaseResponse`
+    // (`{ success: false, error }`), which is what the client validates and
+    // shows. Dropping it turned every 4xx/5xx into "does not match expected
+    // BaseResponse shape" and hid the real reason.
+    data = json as T;
+    if (!response.ok) {
       error = json.error || json.message || `HTTP ${response.status}`;
     }
   } catch (_e) {

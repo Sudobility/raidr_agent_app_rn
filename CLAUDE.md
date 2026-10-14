@@ -82,7 +82,7 @@ index.ts                     # entry: AI SDK polyfills first, then AppRegistry
 App.tsx                      # provider stack + splash gates (localStorage polyfill first)
 src/
   analytics.ts
-  components/                # SignInModal, ResultCard, ThemeVarsProvider
+  components/                # SignInModal, SignInPage, ResultCard, ThemeVarsProvider
   config/                    # constants, env (only process.env reader), theme, designTheme
   context/                   # AuthContext (one file, every platform), ApiContext
   di/                        # initializeServices{,.ios,.android}.ts
@@ -139,9 +139,15 @@ the stack can go back, the centred title, and an optional `headerRight`.
   middle; `valign='center'` also centres it vertically (Ask, permission
   screens), `top` (default) starts under the bar (Settings, forms, details).
 - `layout='fill'` for web views/maps. `footer` holds a fixed Next/Run bar.
-- **No SVG icons in chrome**: react-native-svg is not built for macOS, so
-  heroicons draw nothing there (the sidebar's tab icons are blank on macOS).
-  The back chevron is drawn with Views; permission screens use a glyph.
+- A tile's root grows (`grow`), never `flex-1`: in a grid cell whose height
+  comes from its content, `flex: 1` (basis 0) collapses it and the content
+  spills over the next row (the Results progress tiles did).
+- **react-native-svg ≥ 15.15.5 on macOS.** Older versions draw nothing there
+  under Fabric (the base view asks AppKit for `updateLayer`; RNSVG draws in
+  `drawRect:`), so every SVG — the sidebar's tab icons, Google's logo on the
+  sign-in form — was blank. 15.15.5 fixed it upstream (`wantsUpdateLayer`
+  returns NO in `RNSVGSvgView`); music_app_rn and sudojo_app_rn still patch
+  15.12.1 for the same thing. Do not go below 15.15.5.
 
 **Permission screens** (`PermissionScreen`, `src/lib/permissions.ts`): their
 own screen with text and the call to action in the middle, never left in the
@@ -165,8 +171,9 @@ the only place the cloud flow calls `RaidrAgentClient`.
 - **Ask**: `understandRequest` with the device context (`src/lib/deviceContext.ts`:
   country via `react-native-localize`, locale, time zone, `now` with offset).
   Returns the six-W `AgentIntent` (incl. `selection`) and ranked candidates (with `reason`).
-- **Sites**: `single` → radio (exactly one, top one preselected); `best`/`all` (top 3 preselected) →
-  checkboxes (1–8). Rules in `src/lib/sites.ts`. Rows show the site's **domain**
+- **Sites**: a toggle per site, every one on to start (up to 8, the run's
+  cap), whatever the selection mode; Next needs 1–8 on. `single`/`best` still
+  end in one result, picked from every site's. Rules in `src/lib/sites.ts`. Rows show the site's **domain**
   (`siteDomain`: first origin without `www.`, never the catalog's "… API" title)
   and its icon (`CandidateSite.iconUrl`, `SiteIcon` falls back to the first
   letter). Every screen that names a site (Prepare, Results progress, History,
@@ -234,8 +241,8 @@ at ≥ 700pt (`REGULAR_WIDTH`, measured on the view) the section list is 300pt
 on the left and the chosen section shows beside it; narrower, each section is
 pushed as `SettingsSection` (`SettingsSectionScreen`). Sections are
 `src/screens/settings/` (ids and labels in `sections.ts`, a `Record` so a new
-one needs a label): **Account** (the app account; signing in opens
-`SignInModal`), **Appearance** (language and theme `Select`s and the version,
+one needs a label): **Account** (the app account; signed out, it is
+`SignInPage`), **Appearance** (language and theme `Select`s and the version,
 copied from music_app_rn), **Credentials**, **App settings** (empty for now).
 API Keys stays its own screen, linked from the list.
 
@@ -386,14 +393,18 @@ The app's own sign-in (Firebase, through `AuthContext`) is the shared form —
 shell it gets follows one rule, the same as the web:
 
 - **A screen whose job is signing in** — somewhere the user navigates to in
-  order to sign in — renders `LoginPage` from `@sudobility/building_blocks_rn`.
-  There is no such screen today.
+  order to sign in — renders `SignInPage` (`src/components/SignInPage.tsx`,
+  `LoginPage` from `@sudobility/building_blocks_rn`). Settings' Account pane
+  while signed out is one: the page fills the pane (`SplitView`
+  `detailScrolls`, `fill` layout on the narrow screen), since `LoginPage`
+  scrolls itself. As in music_app_rn.
 - **Sign-in in the middle of something else** — an action that needs an
   account, or a "Sign in" row on a screen whose purpose is something else —
   opens `SignInModal` (`src/components/SignInModal.tsx`, the shared
   `LoginModal`) over the current screen. On success it closes itself and the
   user stays where they were. Never navigate away to a login route from such a
-  place. Settings' Account row is one of these.
+  place. Go on Ask while signed out is one of these. building_blocks_rn has no
+  modal; `LoginModal` is components-rn's.
 
 Both take their handlers, strings and providers from `useSignInForm()`
 (`src/hooks/useSignInForm.ts`): email sign-in/up, password reset

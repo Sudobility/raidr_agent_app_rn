@@ -35,12 +35,18 @@ export interface SplitViewProps {
   /** The chosen entry's title and content, shown only when split. */
   detailTitle: string;
   detail: React.ReactNode;
+  /**
+   * The detail brings its own scrolling and heading (a `LoginPage`): show it
+   * filling the pane, without the pane's scroll view and title.
+   */
+  detailScrolls?: boolean;
 }
 
 export default function SplitView({
   renderMaster,
   detailTitle,
   detail,
+  detailScrolls = false,
 }: SplitViewProps) {
   const [width, setWidth] = useState(0);
   const bottom = useTabBarHeight() + 24;
@@ -71,19 +77,25 @@ export default function SplitView({
       {split ? (
         <>
           <View className='bg-border' style={styles.divider} />
-          <ScrollView
-            style={styles.full}
-            contentContainerStyle={[styles.detail, { paddingBottom: bottom }]}
-            keyboardShouldPersistTaps='handled'
-            testID='split-detail'
-          >
-            <View style={styles.column}>
-              <Text size='2xl' weight='bold' className='mb-4 px-1'>
-                {detailTitle}
-              </Text>
+          {detailScrolls ? (
+            <View style={styles.full} testID='split-detail'>
               {detail}
             </View>
-          </ScrollView>
+          ) : (
+            <ScrollView
+              style={styles.full}
+              contentContainerStyle={[styles.detail, { paddingBottom: bottom }]}
+              keyboardShouldPersistTaps='handled'
+              testID='split-detail'
+            >
+              <View style={styles.column}>
+                <Text size='2xl' weight='bold' className='mb-4 px-1'>
+                  {detailTitle}
+                </Text>
+                {detail}
+              </View>
+            </ScrollView>
+          )}
         </>
       ) : null}
     </View>

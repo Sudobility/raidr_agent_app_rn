@@ -1,6 +1,6 @@
 /**
- * Tests for the pure Sites-step helpers: grouping and the selection rules per
- * selection mode.
+ * Tests for the pure Sites-step helpers: grouping and the toggle rules (the
+ * same for every selection mode).
  */
 
 import type { CandidateSite } from '@sudobility/raidr_agent_types';
@@ -9,7 +9,6 @@ import {
   groupByLabel,
   initialSelection,
   isNextEnabled,
-  isSingleSelection,
   MAX_SELECTED_SITES,
   nextSelection,
   selectedInOrder,
@@ -44,48 +43,36 @@ describe('groupByLabel', () => {
 });
 
 describe('nextSelection', () => {
-  it('single: picking a site replaces the choice', () => {
-    expect([...nextSelection('single', new Set(['a']), 'b')]).toEqual(['b']);
-    expect([...nextSelection('single', new Set(['a']), 'a')]).toEqual(['a']);
+  it('toggles a site on and off', () => {
+    expect([...nextSelection(new Set(['a']), 'b')]).toEqual(['a', 'b']);
+    expect([...nextSelection(new Set(['a', 'b']), 'a')]).toEqual(['b']);
   });
 
-  it('best/all: toggles', () => {
-    expect([...nextSelection('all', new Set(['a']), 'b')]).toEqual(['a', 'b']);
-    expect([...nextSelection('best', new Set(['a', 'b']), 'a')]).toEqual(['b']);
-  });
-
-  it('best/all: never exceeds the cap', () => {
+  it('never exceeds the cap', () => {
     const full = new Set(hosts(MAX_SELECTED_SITES));
-    expect(nextSelection('all', full, 'extra').size).toBe(MAX_SELECTED_SITES);
-    expect(canAddMore('all', full)).toBe(false);
-    expect(canAddMore('single', full)).toBe(true);
+    expect(nextSelection(full, 'extra').size).toBe(MAX_SELECTED_SITES);
+    expect(canAddMore(full)).toBe(false);
+    expect(canAddMore(new Set(['a']))).toBe(true);
   });
 });
 
 describe('isNextEnabled', () => {
-  it('single needs exactly one', () => {
-    expect(isNextEnabled('single', new Set())).toBe(false);
-    expect(isNextEnabled('single', new Set(['a']))).toBe(true);
-    expect(isNextEnabled('single', new Set(['a', 'b']))).toBe(false);
-  });
-
-  it('best/all need 1..8', () => {
-    expect(isNextEnabled('all', new Set())).toBe(false);
-    expect(isNextEnabled('best', new Set(['a', 'b']))).toBe(true);
-    expect(isNextEnabled('all', new Set(hosts(9)))).toBe(false);
+  it('needs 1..8 sites on', () => {
+    expect(isNextEnabled(new Set())).toBe(false);
+    expect(isNextEnabled(new Set(['a']))).toBe(true);
+    expect(isNextEnabled(new Set(['a', 'b']))).toBe(true);
+    expect(isNextEnabled(new Set(hosts(9)))).toBe(false);
   });
 });
 
 describe('initialSelection / selectedInOrder', () => {
   const candidates = [site({ apiHost: 'a' }), site({ apiHost: 'b' })];
 
-  it('preselects the top site for single and the top three otherwise', () => {
-    const many = ['a', 'b', 'c', 'd'].map(apiHost => site({ apiHost }));
-    expect([...initialSelection('single', many)]).toEqual(['a']);
-    expect([...initialSelection('all', many)]).toEqual(['a', 'b', 'c']);
-    expect([...initialSelection('best', candidates)]).toEqual(['a', 'b']);
-    expect(initialSelection('single', []).size).toBe(0);
-    expect(isSingleSelection('best')).toBe(false);
+  it('turns every site on, up to the cap, best-ranked first', () => {
+    expect([...initialSelection(candidates)]).toEqual(['a', 'b']);
+    const many = hosts(12).map(apiHost => site({ apiHost }));
+    expect([...initialSelection(many)]).toEqual(hosts(MAX_SELECTED_SITES));
+    expect(initialSelection([]).size).toBe(0);
   });
 
   it('keeps candidate order', () => {

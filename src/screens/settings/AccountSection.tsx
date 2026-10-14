@@ -1,22 +1,36 @@
 /**
- * The app account (Firebase, through `AuthContext`). Signing in is not this
- * screen's job, so "Sign in" opens `SignInModal` (the shared `LoginModal`)
- * over it; on success the modal closes and the section shows the account.
+ * The app account (Firebase, through `AuthContext`).
+ *
+ * **Signed out, this pane is the way in**, and nothing else: the sign-in page
+ * (`SignInPage`, building_blocks_rn's `LoginPage`), since this is where
+ * somebody goes in order to sign in. A "Sign in" row would be a step before
+ * it, and a modal over a pane with nothing else to show would be another. The
+ * page scrolls itself, so its hosts drop their own scroll view
+ * ({@link useAccountScrollsItself}). Signed in, it shows the account and the
+ * way out.
  */
 
-import React, { useCallback, useState } from 'react';
-import { Alert, Pressable } from 'react-native';
+import React, { useCallback } from 'react';
+import { Alert } from 'react-native';
 import { Button, Spinner, Text } from '@sudobility/components-rn';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/AuthContext';
-import SignInModal from '@/components/SignInModal';
+import SignInPage from '@/components/SignInPage';
 import { trackButtonClick, trackEvent } from '@/analytics';
 import { SettingsGroup, SettingsRow } from './SettingsRows';
+
+/**
+ * Whether the Account section is the sign-in page right now, which brings its
+ * own scrolling and heading: its host shows it without either.
+ */
+export function useAccountScrollsItself(): boolean {
+  const { user, isLoading } = useAuth();
+  return !isLoading && !user;
+}
 
 export default function AccountSection() {
   const { t } = useTranslation();
   const { user, isLoading, signOut } = useAuth();
-  const [showSignIn, setShowSignIn] = useState(false);
 
   const handleSignOut = useCallback(() => {
     trackButtonClick('sign_out');
@@ -41,52 +55,34 @@ export default function AccountSection() {
     return <Spinner size='small' />;
   }
 
+  if (!user) {
+    return <SignInPage />;
+  }
+
   return (
     <>
-      {user ? (
-        <>
-          <SettingsGroup>
-            <SettingsRow label={t('settings.accountEmail')}>
-              <Text size='base' color='muted'>
-                {user.email || t('auth.signedIn')}
-              </Text>
-            </SettingsRow>
-            {user.displayName ? (
-              <SettingsRow label={t('settings.accountName')}>
-                <Text size='base' color='muted'>
-                  {user.displayName}
-                </Text>
-              </SettingsRow>
-            ) : null}
-          </SettingsGroup>
-          <Button
-            variant='outline'
-            onPress={handleSignOut}
-            accessibilityLabel={t('auth.signOut')}
-            testID='settings-sign-out'
-          >
-            {t('auth.signOut')}
-          </Button>
-        </>
-      ) : (
-        <SettingsGroup footer={t('settings.signInDescription')}>
-          <Pressable
-            onPress={() => {
-              trackButtonClick('sign_in');
-              setShowSignIn(true);
-            }}
-            accessibilityRole='button'
-            accessibilityLabel={t('auth.signIn')}
-          >
-            <SettingsRow label={t('auth.signIn')}>
-              <Text size='xl' color='muted'>
-                {'›'}
-              </Text>
-            </SettingsRow>
-          </Pressable>
-        </SettingsGroup>
-      )}
-      <SignInModal visible={showSignIn} onClose={() => setShowSignIn(false)} />
+      <SettingsGroup>
+        <SettingsRow label={t('settings.accountEmail')}>
+          <Text size='base' color='muted'>
+            {user.email || t('auth.signedIn')}
+          </Text>
+        </SettingsRow>
+        {user.displayName ? (
+          <SettingsRow label={t('settings.accountName')}>
+            <Text size='base' color='muted'>
+              {user.displayName}
+            </Text>
+          </SettingsRow>
+        ) : null}
+      </SettingsGroup>
+      <Button
+        variant='outline'
+        onPress={handleSignOut}
+        accessibilityLabel={t('auth.signOut')}
+        testID='settings-sign-out'
+      >
+        {t('auth.signOut')}
+      </Button>
     </>
   );
 }

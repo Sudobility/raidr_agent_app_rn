@@ -63,7 +63,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
           {runs.map(runItem => (
             <Pressable
               key={runItem.id}
-              className='flex-1 p-4 rounded-lg bg-card border border-foreground/10'
+              className='grow p-4 rounded-lg bg-card border border-foreground/10'
               onPress={() =>
                 navigation.navigate('HistoryRun', {
                   runId: runItem.id,

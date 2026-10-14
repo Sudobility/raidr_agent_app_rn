@@ -1,12 +1,13 @@
 /**
  * Settings is master/detail: wide, the chosen section shows beside the list;
- * narrow, a section is its own screen. Settings is not a sign-in screen, so
- * signing in from its Account section opens the shared `LoginModal` over it
- * rather than navigating anywhere.
+ * narrow, a section is its own screen. Signed out, the Account section is the
+ * way in: building_blocks_rn's `LoginPage`, filling the pane without the
+ * pane's own scroll view (the page scrolls itself).
  */
 import React from 'react';
+import { ScrollView } from 'react-native';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { LoginModal } from '@sudobility/components-rn';
+import { LoginPage } from '@sudobility/building_blocks_rn';
 import SettingsScreen from '../SettingsScreen';
 import AccountSection from '../settings/AccountSection';
 import AppearanceSection from '../settings/AppearanceSection';
@@ -28,6 +29,11 @@ jest.mock('@/context/AuthContext', () => ({
   useAuth: () => mockAuth,
   GOOGLE_SIGN_IN_OFFERED: true,
   APPLE_SIGN_IN_OFFERED: false,
+}));
+// The real page pulls in native modules Jest cannot load; the tests read the
+// props the app gives it.
+jest.mock('@sudobility/building_blocks_rn', () => ({
+  LoginPage: () => null,
 }));
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
@@ -180,35 +186,21 @@ describe('Account section sign-in', () => {
     mockAuth.user = null;
   });
 
-  it('opens LoginModal over the screen when signed out', () => {
-    const tree = render();
-    const modal = tree.root.findByType(LoginModal);
-    expect(modal.props.visible).toBe(false);
-
-    const row = tree.root.find(
-      node =>
-        node.props.accessibilityLabel === 'auth.signIn' &&
-        typeof node.props.onPress === 'function'
-    );
-    act(() => {
-      row.props.onPress();
-    });
-
-    const opened = tree.root.findByType(LoginModal);
-    expect(opened.props.visible).toBe(true);
-    expect(opened.props.modalText.signInTitle).toBe('auth.signIn');
-    expect(opened.props.text.dontHaveAccount).toBe('auth.dontHaveAccount');
-    expect(typeof opened.props.onPasswordReset).toBe('function');
-    expect(typeof opened.props.onGoogleSignIn).toBe('function');
-    expect(opened.props.onAppleSignIn).toBeUndefined();
+  it('is the sign-in page when signed out', () => {
+    const page = render().root.findByType(LoginPage);
+    expect(page.props.appName).toBe('raidr agent');
+    expect(page.props.text.signInToAccount).toBe('auth.signInToAccount');
+    expect(page.props.text.dontHaveAccount).toBe('auth.dontHaveAccount');
+    expect(typeof page.props.onPasswordReset).toBe('function');
+    expect(page.props.showGoogleSignIn).toBe(true);
+    expect(page.props.showAppleSignIn).toBe(false);
   });
 
-  it('wires the modal to the auth context', async () => {
-    const tree = render();
-    const modal = tree.root.findByType(LoginModal);
+  it('wires the page to the auth context', async () => {
+    const page = render().root.findByType(LoginPage);
     await act(async () => {
-      await modal.props.onEmailSignIn('a@b.c', 'pw');
-      await modal.props.onPasswordReset('a@b.c');
+      await page.props.onEmailSignIn('a@b.c', 'pw');
+      await page.props.onPasswordReset('a@b.c');
     });
     expect(mockAuth.signInWithEmail).toHaveBeenCalledWith('a@b.c', 'pw');
     expect(mockAuth.sendPasswordResetEmail).toHaveBeenCalledWith('a@b.c');
@@ -224,24 +216,13 @@ describe('Account section sign-in', () => {
     (trackError as jest.Mock).mockClear();
     (trackEvent as jest.Mock).mockClear();
 
-    const tree = render();
-    const row = tree.root.find(
-      node =>
-        node.props.accessibilityLabel === 'auth.signIn' &&
-        typeof node.props.onPress === 'function'
-    );
-    act(() => {
-      row.props.onPress();
-    });
-    const modal = tree.root.findByType(LoginModal);
-
-    // Rethrown untouched, so LoginView sees the cancel and keeps the modal up.
+    const page = render().root.findByType(LoginPage);
+    // Rethrown untouched, so LoginView sees the cancel and stays on the form.
     await act(async () => {
-      await expect(modal.props.onGoogleSignIn()).rejects.toBe(cancelled);
+      await expect(page.props.onGoogleSignIn()).rejects.toBe(cancelled);
     });
     expect(trackError).not.toHaveBeenCalled();
     expect(trackEvent).not.toHaveBeenCalledWith('signed_in_google');
-    expect(tree.root.findByType(LoginModal).props.visible).toBe(true);
   });
 
   it('records a Google sign-in that really failed', async () => {
@@ -252,18 +233,32 @@ describe('Account section sign-in', () => {
     );
     (trackError as jest.Mock).mockClear();
 
-    const modal = render().root.findByType(LoginModal);
+    const page = render().root.findByType(LoginPage);
     await act(async () => {
-      await expect(modal.props.onGoogleSignIn()).rejects.toThrow('boom');
+      await expect(page.props.onGoogleSignIn()).rejects.toThrow('boom');
     });
     expect(trackError).toHaveBeenCalledWith('boom', 'google_sign_in_error');
   });
 
-  it('shows the account, not the modal trigger, when signed in', () => {
+  it('shows the account, not the sign-in page, when signed in', () => {
     mockAuth.user = { uid: 'uid12345', email: 'me@x.y', displayName: 'Me' };
     const tree = render();
+    expect(tree.root.findAllByType(LoginPage)).toHaveLength(0);
     expect(
-      tree.root.findAll(n => n.props.accessibilityLabel === 'auth.signIn')
+      tree.root.findAll(n => n.props.testID === 'settings-sign-out').length
+    ).toBeGreaterThan(0);
+  });
+
+  it('fills the wide detail pane without its scroll view and title', () => {
+    const tree = renderScreen();
+    layOut(tree, 1024);
+    const pane = tree.root.find(
+      n => n.props.testID === 'split-detail' && n.props.children
+    );
+    expect(pane.findAllByType(LoginPage)).toHaveLength(1);
+    expect(pane.findAllByType(ScrollView)).toHaveLength(0);
+    expect(
+      pane.findAll(n => n.props.children === 'settings.sections.account')
     ).toHaveLength(0);
   });
 });

@@ -2539,7 +2539,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - RNSVG (15.15.3):
+  - RNSVG (15.15.5):
     - boost
     - DoubleConversion
     - fast_float
@@ -2565,10 +2565,10 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNSVG/common (= 15.15.3)
+    - RNSVG/common (= 15.15.5)
     - SocketRocket
     - Yoga
-  - RNSVG/common (15.15.3):
+  - RNSVG/common (15.15.5):
     - boost
     - DoubleConversion
     - fast_float
@@ -2937,10 +2937,10 @@ SPEC CHECKSUMS:
   RNGestureHandler: 3a73f098d74712952870e948b3d9cf7b6cae9961
   RNKeychain: a2c134ab796272c3d605e035ab727591000b30f3
   RNLocalize: 1aedbc2c15073861a364174919d23c31c5924b16
-  RNSVG: c4d5a438a1c96f7ed7dc66349a5b7e97616fd701
+  RNSVG: 4dd2d79b3cb224bcb3ae666a2adda2ede9d3772f
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   Yoga: a88f30ac6f89fded00f9840e7d043315e5ab4fe0
 
-PODFILE CHECKSUM: fc7bf92f026657163f0a6ea66b9b00ddab857cd3
+PODFILE CHECKSUM: aec0468c8440b1b3b6e5bef6b519e4b0dca24dee
 
 COCOAPODS: 1.17.0

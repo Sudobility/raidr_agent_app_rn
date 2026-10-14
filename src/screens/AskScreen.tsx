@@ -85,7 +85,7 @@ export default function AskScreen({ navigation }: AskScreenProps) {
         location_needed: intent.location_needed,
       });
       resetSelection();
-      for (const apiHost of initialSelection(intent.selection, candidates)) {
+      for (const apiHost of initialSelection(candidates)) {
         selectSite(apiHost, true);
       }
       setFlow(trimmed, intent, candidates, null);

@@ -342,7 +342,7 @@ export default function ResultsScreen({ navigation }: ResultsScreenProps) {
             return (
               <View
                 key={site.apiHost}
-                className='flex-1 p-4 rounded-lg bg-card border border-foreground/10'
+                className='grow p-4 rounded-lg bg-card border border-foreground/10'
               >
                 <View className='flex-row items-center'>
                   <View className='mr-3'>

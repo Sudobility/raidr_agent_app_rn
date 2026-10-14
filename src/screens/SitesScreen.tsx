@@ -5,16 +5,16 @@
  * grouped under their first label. Each row shows the site's icon and its
  * domain (not the catalog's API title). Each label's sites are tiles: one
  * column when the window is narrow, a grid when wide; Next stays in a fixed
- * footer. The intent's selection mode decides the
- * control: `single` is a radio list (exactly one site; the top one starts
- * chosen), `best` / `all` are checkboxes (1–8 sites). Signing in is decided
+ * footer. Each site has a toggle, all on to start (up to the run's cap of
+ * 8), whatever the selection mode: a `single` / `best` request still gets one
+ * result, picked from every site's. Signing in is decided
  * in the next step: "Next" goes to Prepare, which works out which chosen
  * sites need it.
  */
 
 import React, { useCallback, useEffect } from 'react';
 import { View, Pressable } from 'react-native';
-import { Text, Button, Checkbox } from '@sudobility/components-rn';
+import { Text, Button, Switch } from '@sudobility/components-rn';
 import { useTranslation } from 'react-i18next';
 import { useSelectionStore } from '@sudobility/raidr_agent_lib';
 import type { CandidateSite } from '@sudobility/raidr_agent_types';
@@ -25,7 +25,6 @@ import {
   canAddMore,
   groupByLabel,
   isNextEnabled,
-  isSingleSelection,
   MAX_SELECTED_SITES,
   nextSelection,
   siteDomain,
@@ -33,19 +32,6 @@ import {
 import SiteIcon from '@/components/SiteIcon';
 import { trackScreenView, trackButtonClick } from '@/analytics';
 import type { SitesScreenProps } from '@/navigation/types';
-
-/** A radio mark: a ring, filled when chosen. */
-function RadioMark({ checked }: { checked: boolean }) {
-  return (
-    <View
-      className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
-        checked ? 'border-primary' : 'border-foreground/30'
-      }`}
-    >
-      {checked ? <View className='w-3 h-3 rounded-full bg-primary' /> : null}
-    </View>
-  );
-}
 
 export default function SitesScreen({ navigation }: SitesScreenProps) {
   const { t } = useTranslation();
@@ -59,15 +45,14 @@ export default function SitesScreen({ navigation }: SitesScreenProps) {
     trackScreenView('Sites');
   }, []);
 
-  const single = isSingleSelection(mode);
   const groups = groupByLabel(candidates);
-  const nextEnabled = isNextEnabled(mode, selected);
-  const roomForMore = canAddMore(mode, selected);
+  const nextEnabled = isNextEnabled(selected);
+  const roomForMore = canAddMore(selected);
 
   const choose = useCallback(
     (apiHost: string) => {
       const current = useSelectionStore.getState().selected;
-      const next = nextSelection(mode, current, apiHost);
+      const next = nextSelection(current, apiHost);
       for (const host of current) {
         if (!next.has(host)) {
           select(host, false);
@@ -79,7 +64,7 @@ export default function SitesScreen({ navigation }: SitesScreenProps) {
         }
       }
     },
-    [mode, select]
+    [select]
   );
 
   const handleNext = useCallback(() => {
@@ -96,10 +81,10 @@ export default function SitesScreen({ navigation }: SitesScreenProps) {
         key={site.apiHost}
         onPress={() => choose(site.apiHost)}
         disabled={disabled}
-        accessibilityRole={single ? 'radio' : 'checkbox'}
+        accessibilityRole='switch'
         accessibilityState={{ checked, disabled }}
         accessibilityLabel={domain}
-        className={`flex-1 flex-row items-start p-4 rounded-lg bg-card border ${
+        className={`grow flex-row items-start p-4 rounded-lg bg-card border ${
           checked ? 'border-primary' : 'border-foreground/10'
         } ${disabled ? 'opacity-50' : ''}`}
       >
@@ -127,16 +112,13 @@ export default function SitesScreen({ navigation }: SitesScreenProps) {
             {t('sites.tools', { count: site.toolCount })}
           </Text>
         </View>
-        {single ? (
-          <RadioMark checked={checked} />
-        ) : (
-          <Checkbox
-            checked={checked}
-            disabled={disabled}
-            onChange={() => choose(site.apiHost)}
-            accessibilityLabel={domain}
-          />
-        )}
+        <Switch
+          checked={checked}
+          disabled={disabled}
+          onCheckedChange={() => choose(site.apiHost)}
+          accessibilityLabel={domain}
+          testID={`site-toggle-${site.apiHost}`}
+        />
       </Pressable>
     );
   };
@@ -164,9 +146,7 @@ export default function SitesScreen({ navigation }: SitesScreenProps) {
       ) : (
         <>
           <Text size='sm' color='muted' className='mb-4'>
-            {single
-              ? t('sites.pickOne')
-              : t('sites.pickMany', { max: MAX_SELECTED_SITES })}
+            {t('sites.pickMany', { max: MAX_SELECTED_SITES })}
           </Text>
           {groups.map(group => (
             <View key={group.label || 'other'} className='mb-6'>

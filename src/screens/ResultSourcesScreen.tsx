@@ -79,7 +79,7 @@ export default function ResultSourcesScreen({
               accessibilityLabel={
                 detail ? `${badge?.domain}, ${detail}` : badge?.domain
               }
-              className='flex-1 flex-row items-center p-4 rounded-lg bg-card border border-foreground/10'
+              className='grow flex-row items-center p-4 rounded-lg bg-card border border-foreground/10'
             >
               <SiteIcon
                 {...(badge?.iconUrl ? { iconUrl: badge.iconUrl } : {})}

@@ -15,11 +15,7 @@ import { Text } from '@sudobility/components-rn';
 import { useTranslation } from 'react-i18next';
 import { useAppColors } from '@/hooks/useAppColors';
 
-/**
- * The back chevron, drawn with two borders of a rotated square rather than an
- * SVG icon: react-native-svg is not built for macOS, so SVG icons do not
- * draw there.
- */
+/** The back chevron, drawn with two borders of a rotated square. */
 function BackChevron({ color }: { color: string }) {
   return (
     <View style={styles.chevronBox}>

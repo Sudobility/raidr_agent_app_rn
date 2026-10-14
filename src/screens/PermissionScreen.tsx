@@ -21,8 +21,7 @@ import { trackButtonClick, trackScreenView } from '@/analytics';
 import type { PermissionScreenProps } from '@/navigation/types';
 
 /**
- * Each permission's symbol, as a glyph: SVG icons do not draw on macOS
- * (react-native-svg is not built there).
+ * Each permission's symbol, as a glyph.
  */
 const SYMBOLS: Record<PermissionKind, string> = {
   location: '📍',
