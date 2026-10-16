@@ -18,7 +18,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:unit": "jest --passWithNoTests",
-    "localize": "SCRIPT=$(mktemp) && curl -fsSL https://raw.githubusercontent.com/johnqh/workflows/main/scripts/localize_batch.cjs -o $SCRIPT && node $SCRIPT ./assets/locales https://api.whisperly.dev/api/v1/translate/jie9cytr/starter && rm -f $SCRIPT && prettier . --write",
+    "localize": "SCRIPT=$(mktemp) && curl -fsSL https://raw.githubusercontent.com/johnqh/workflows/main/scripts/localize_batch.cjs -o $SCRIPT && WHISPERLY_API_KEY=$(grep -h '^WHISPERLY_API_KEY=' ~/.keys ~/.keys.txt 2>/dev/null | head -1 | cut -d= -f2-) node $SCRIPT ./assets/locales https://api.whisperly.dev/api/v1/translate/jie9cytr/starter && rm -f $SCRIPT && prettier . --write",
     "verify": "bun run typecheck && bun run lint && bun run test:unit",
     "test": "jest --passWithNoTests"
   },
