@@ -38,7 +38,7 @@ type SourcesNavigation = NativeStackNavigationProp<{
 export default function ResultSourcesScreen({
   route,
 }: ResultSourcesScreenProps) {
-  const { copies } = route.params;
+  const { copies, locationRequest } = route.params;
   const { t } = useTranslation();
   const navigation = useNavigation<SourcesNavigation>();
   const hosts = useMemo(
@@ -73,7 +73,7 @@ export default function ResultSourcesScreen({
                 trackButtonClick('result_source', {
                   site: copy.item.apiHost,
                 });
-                navigation.navigate('ResultDetail', { item: copy.item });
+                navigation.navigate('ResultDetail', { item: copy.item, locationRequest });
               }}
               accessibilityRole='button'
               accessibilityLabel={

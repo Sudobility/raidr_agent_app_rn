@@ -2,7 +2,7 @@
 // Blank/unset means standard Firebase (the library holds no default).
 // NOTE: covers the Firebase JS SDK — which is now auth on every platform —
 // but not the @react-native-firebase native modules (analytics, crashlytics,
-// messaging, remote config), which still reach Google directly.
+// messaging), which still reach Google directly.
 import { setFirebaseProxy } from '@sudobility/di';
 import { env } from '@/config/env';
 setFirebaseProxy(env.FIREBASE_PROXY || null);

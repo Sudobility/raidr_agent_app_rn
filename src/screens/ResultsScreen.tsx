@@ -57,7 +57,8 @@ import ResultList from '@/components/ResultList';
 import Screen, { READABLE_WIDTH } from '@/components/layout/Screen';
 import TileGrid from '@/components/layout/TileGrid';
 import SiteIcon from '@/components/SiteIcon';
-import ResultsMap from '@/components/ResultsMap';
+import LocationResultsMap from '@/components/LocationResultsMap';
+import { isLocationIntent } from '@/lib/resultLocation';
 import BestResult from '@/components/BestResult';
 import { trackScreenView, trackButtonClick, trackEvent } from '@/analytics';
 import type { ResultsScreenProps } from '@/navigation/types';
@@ -83,7 +84,6 @@ export default function ResultsScreen({ navigation }: ResultsScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [activeRuns, setActiveRuns] = useState(0);
   const [started, setStarted] = useState(false);
-  const [view, setView] = useState<'list' | 'map'>('list');
 
   const cancelledRef = useRef(false);
   const handlesRef = useRef<RunHandle[]>([]);
@@ -281,7 +281,7 @@ export default function ResultsScreen({ navigation }: ResultsScreenProps) {
   );
 
   const running = !started || activeRuns > 0;
-  const locationNeeded = intent?.location_needed === true;
+  const locationRequest = isLocationIntent(intent);
   const retryable = running
     ? []
     : sitesToRetryWithSignIn(sites, Object.values(calls));
@@ -298,28 +298,11 @@ export default function ResultsScreen({ navigation }: ResultsScreenProps) {
 
   const seeAll = () => {
     trackButtonClick('results_see_all', { count: results.length });
-    navigation.navigate('AllResults', { results, groups, best });
+    navigation.navigate('AllResults', { results, groups, best, locationRequest });
   };
 
   return (
-    <Screen
-      title={t('results.title')}
-      layout='list'
-      headerRight={
-        locationNeeded && !showsBest(mode) && results.length > 0 ? (
-          <Button
-            variant='ghost'
-            size='sm'
-            onPress={() => setView(view === 'list' ? 'map' : 'list')}
-            accessibilityLabel={t(
-              view === 'list' ? 'results.map' : 'results.list'
-            )}
-          >
-            {t(view === 'list' ? 'results.map' : 'results.list')}
-          </Button>
-        ) : undefined
-      }
-    >
+    <Screen title={t('results.title')} layout='list'>
       {/* Progress */}
       <Text
         size='sm'
@@ -404,6 +387,13 @@ export default function ResultsScreen({ navigation }: ResultsScreenProps) {
       </View>
 
       {/* Answers */}
+      {locationRequest && results.length > 0 ? (
+        <LocationResultsMap
+          items={results}
+          userLocation={location}
+          onSelect={item => navigation.navigate('ResultDetail', { item, locationRequest })}
+        />
+      ) : null}
       {top ? (
         <View className='items-center'>
           <View style={styles.readable}>
@@ -412,6 +402,7 @@ export default function ResultsScreen({ navigation }: ResultsScreenProps) {
               reason={top.reason}
               total={results.length}
               onSeeAll={seeAll}
+              locationRequest={locationRequest}
             />
           </View>
         </View>
@@ -426,22 +417,7 @@ export default function ResultsScreen({ navigation }: ResultsScreenProps) {
           >
             {t('results.answers')}
           </Text>
-          {view === 'map' && locationNeeded ? (
-            <>
-              <ResultsMap
-                items={results}
-                userLocation={location}
-                onSelect={item => navigation.navigate('ResultDetail', { item })}
-              />
-              {!results.some(item => item.location != null) ? (
-                <Text size='sm' color='muted' className='mt-2'>
-                  {t('results.noMapResults')}
-                </Text>
-              ) : null}
-            </>
-          ) : (
-            <ResultList results={results} groups={groups} best={best} />
-          )}
+          <ResultList results={results} groups={groups} best={best} locationRequest={locationRequest} />
         </>
       ) : results.length > 0 ? (
         <Text size='sm' color='muted'>

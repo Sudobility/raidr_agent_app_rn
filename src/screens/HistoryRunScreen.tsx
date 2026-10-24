@@ -19,6 +19,8 @@ import TileGrid from '@/components/layout/TileGrid';
 import ResultList from '@/components/ResultList';
 import SiteIcon from '@/components/SiteIcon';
 import BestResult from '@/components/BestResult';
+import LocationResultsMap from '@/components/LocationResultsMap';
+import { isLocationIntent } from '@/lib/resultLocation';
 import { useApi } from '@/context/ApiContext';
 import { useAuth } from '@/context/AuthContext';
 import { useSiteBadges } from '@/hooks/useSiteBadges';
@@ -42,6 +44,7 @@ export default function HistoryRunScreen({
   }, []);
 
   const detail = runQuery.data;
+  const locationRequest = isLocationIntent(detail?.intent);
   const top =
     detail && showsBest(detail.intent?.selection)
       ? bestResult(detail.results, detail.best)
@@ -110,11 +113,19 @@ export default function HistoryRunScreen({
             </View>
           ) : null}
 
+          {locationRequest && detail.results.length > 0 ? (
+            <LocationResultsMap
+              items={detail.results}
+              userLocation={null}
+              onSelect={item => navigation.navigate('ResultDetail', { item, locationRequest })}
+            />
+          ) : null}
           {top ? (
             <View className='items-center'>
               <View style={styles.readable}>
                 <BestResult
                   item={top.item}
+                  locationRequest={locationRequest}
                   reason={top.reason}
                   total={detail.results.length}
                   onSeeAll={() => {
@@ -125,6 +136,7 @@ export default function HistoryRunScreen({
                       results: detail.results,
                       groups: detail.groups ?? [],
                       best: detail.best ?? null,
+                      locationRequest,
                     });
                   }}
                 />
@@ -145,6 +157,7 @@ export default function HistoryRunScreen({
                 results={detail.results}
                 groups={detail.groups ?? null}
                 best={detail.best ?? null}
+                locationRequest={locationRequest}
               />
             </>
           ) : (

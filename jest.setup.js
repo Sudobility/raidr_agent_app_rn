@@ -29,24 +29,6 @@ jest.mock(
 );
 
 jest.mock(
-  '@react-native-firebase/remote-config',
-  () => ({
-    __esModule: true,
-    default: jest.fn(() => ({
-      setDefaults: jest.fn(() => Promise.resolve()),
-      fetchAndActivate: jest.fn(() => Promise.resolve(true)),
-      getValue: jest.fn(() => ({
-        asString: () => '',
-        asBoolean: () => false,
-        asNumber: () => 0,
-      })),
-      getAll: jest.fn(() => ({})),
-    })),
-  }),
-  { virtual: true }
-);
-
-jest.mock(
   '@react-native-firebase/perf',
   () => ({
     __esModule: true,

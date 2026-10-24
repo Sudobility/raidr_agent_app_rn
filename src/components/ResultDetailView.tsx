@@ -17,11 +17,13 @@ import { useTranslation } from 'react-i18next';
 import type { ResultItem } from '@sudobility/raidr_agent_types';
 import { trackButtonClick } from '@/analytics';
 import { useSiteBadges } from '@/hooks/useSiteBadges';
+import ResultLocation from './ResultLocation';
 
 interface ResultDetailViewProps {
   item: ResultItem;
   /** Why this result was picked as the best one. */
   reason?: string;
+  locationRequest?: boolean;
 }
 
 function openUrl(url: string): void {
@@ -33,6 +35,7 @@ function openUrl(url: string): void {
 export default function ResultDetailView({
   item,
   reason,
+  locationRequest = false,
 }: ResultDetailViewProps) {
   const { t } = useTranslation();
   // The site's domain (`luma.com`), as on the cards; the catalog title
@@ -96,6 +99,8 @@ export default function ResultDetailView({
           {item.summary}
         </Text>
       ) : null}
+
+      {locationRequest ? <ResultLocation item={item} /> : null}
 
       {recipe ? (
         <>

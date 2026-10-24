@@ -33,9 +33,10 @@ interface ResultListProps {
   results: ResultItem[];
   groups?: ResultGroup[] | null;
   best?: BestData | null;
+  locationRequest?: boolean;
 }
 
-export default function ResultList({ results, groups, best }: ResultListProps) {
+export default function ResultList({ results, groups, best, locationRequest = false }: ResultListProps) {
   const navigation = useNavigation<ResultNavigation>();
   const rows = useMemo(() => displayItems(results, groups), [results, groups]);
   const hosts = useMemo(
@@ -47,11 +48,12 @@ export default function ResultList({ results, groups, best }: ResultListProps) {
   const open = (row: DisplayItem) => {
     if (row.copies.length > 1) {
       trackButtonClick('results_open_merged', { copies: row.copies.length });
-      navigation.navigate('ResultSources', { copies: row.copies });
+      navigation.navigate('ResultSources', { copies: row.copies, locationRequest });
       return;
     }
     navigation.navigate('ResultDetail', {
       item: row.item,
+      locationRequest,
       ...(best?.resultId === row.item.id ? { reason: best.reason } : {}),
     });
   };
@@ -62,6 +64,7 @@ export default function ResultList({ results, groups, best }: ResultListProps) {
         <ResultCard
           key={row.key}
           item={row.item}
+          locationRequest={locationRequest}
           sites={copySites(row.copies).map(host => badges[host]!)}
           onPress={() => open(row)}
         />

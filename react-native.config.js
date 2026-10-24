@@ -3,7 +3,7 @@ const path = require('path');
 
 /**
  * Disable a native Firebase package on the given desktop platforms (native
- * Firebase — analytics, crashlytics, messaging, remote config — is mobile
+ * Firebase — analytics, crashlytics, messaging — is mobile
  * only; auth is the Firebase JS SDK everywhere) while keeping the package's
  * own iOS and Android settings.
  *
@@ -39,7 +39,6 @@ const config = {
     '@react-native-firebase/crashlytics': nativeFirebaseWithout('@react-native-firebase/crashlytics', ['macos']),
     '@react-native-firebase/messaging': nativeFirebaseWithout('@react-native-firebase/messaging', ['macos']),
     '@react-native-firebase/perf': nativeFirebaseWithout('@react-native-firebase/perf', ['macos']),
-    '@react-native-firebase/remote-config': nativeFirebaseWithout('@react-native-firebase/remote-config', ['macos']),
     // Google Sign-In native module doesn't support macOS — desktop uses WebAuth PKCE flow
     '@react-native-google-signin/google-signin': {
       platforms: { macos: null },

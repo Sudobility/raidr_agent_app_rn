@@ -8,19 +8,26 @@
  */
 
 import React, { useEffect } from 'react';
-import type { RouteProp } from '@react-navigation/native';
+import { useNavigation, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import Screen from '@/components/layout/Screen';
 import ResultList from '@/components/ResultList';
+import LocationResultsMap from '@/components/LocationResultsMap';
+import { useRunFlowStore } from '@/stores/runFlowStore';
 import { trackScreenView } from '@/analytics';
-import type { AllResultsParams } from '@/navigation/types';
+import type { AllResultsParams, ResultDetailParams } from '@/navigation/types';
+
+type ResultNavigation = NativeStackNavigationProp<{ ResultDetail: ResultDetailParams }>;
 
 interface AllResultsScreenProps {
   route: RouteProp<{ AllResults: AllResultsParams }, 'AllResults'>;
 }
 
 export default function AllResultsScreen({ route }: AllResultsScreenProps) {
-  const { results, groups, best } = route.params;
+  const { results, groups, best, locationRequest } = route.params;
+  const navigation = useNavigation<ResultNavigation>();
+  const userLocation = useRunFlowStore(s => s.location);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -32,10 +39,18 @@ export default function AllResultsScreen({ route }: AllResultsScreenProps) {
       title={t('results.allTitle', { count: results.length })}
       layout='list'
     >
+      {locationRequest && results.length > 0 ? (
+        <LocationResultsMap
+          items={results}
+          userLocation={userLocation}
+          onSelect={item => navigation.navigate('ResultDetail', { item, locationRequest })}
+        />
+      ) : null}
       <ResultList
         results={results}
         groups={groups ?? null}
         best={best ?? null}
+        locationRequest={locationRequest}
       />
     </Screen>
   );

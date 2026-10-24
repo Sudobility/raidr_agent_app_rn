@@ -19,7 +19,7 @@ interface ResultDetailScreenProps {
 }
 
 export default function ResultDetailScreen({ route }: ResultDetailScreenProps) {
-  const { item, reason } = route.params;
+  const { item, reason, locationRequest } = route.params;
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function ResultDetailScreen({ route }: ResultDetailScreenProps) {
 
   return (
     <Screen title={t('resultDetail.title')}>
-      <ResultDetailView item={item} reason={reason} />
+      <ResultDetailView item={item} reason={reason} locationRequest={locationRequest} />
     </Screen>
   );
 }

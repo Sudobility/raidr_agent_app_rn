@@ -99,7 +99,7 @@
     "answers": "Answers",
     "list": "List",
     "map": "Map",
-    "noMapResults": "No results include map coordinates.",
+    "noMapResults": "This site did not provide map coordinates for this place.",
     "calls_one": "{{count}} call",
     "calls_other": "{{count}} calls",
     "running": "Running...",
@@ -135,6 +135,8 @@
   },
   "resultDetail": {
     "title": "Detail",
+    "location": "Location",
+    "locationUnavailable": "Location not provided by the source",
     "ingredients": "Ingredients",
     "steps": "Steps",
     "minutes_one": "{{count}} min",

@@ -14,16 +14,17 @@ import type { PermissionKind } from '@/lib/permissionKinds';
 import type { SettingsSectionId } from '@/screens/settings/sections';
 
 /** Result detail: the item, and why it was picked when it is the best one. */
-export type ResultDetailParams = { item: ResultItem; reason?: string };
+export type ResultDetailParams = { item: ResultItem; reason?: string; locationRequest?: boolean };
 
 /** Where to get a merged result: its copies, one per listing. */
-export type ResultSourcesParams = { copies: ResultCopy[] };
+export type ResultSourcesParams = { copies: ResultCopy[]; locationRequest?: boolean };
 
 /** Every result of a run, as a list (the "See all N results" step). */
 export type AllResultsParams = {
   results: ResultItem[];
   groups?: ResultGroup[];
   best?: BestData | null;
+  locationRequest?: boolean;
 };
 
 /** The screen to continue to after a permission screen (same stack). */

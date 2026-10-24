@@ -5,8 +5,8 @@
  * `useFirebaseAuthJs` with `platform` set: the China proxy is a `fetch`
  * wrapper, which the JS SDK's requests pass through on a phone exactly as in
  * a browser, and the native SDK's never do. Native Firebase stays for what
- * has no JS equivalent in React Native — analytics, crashlytics, messaging,
- * remote config — and is configured from `GoogleService-Info.plist` /
+ * has no JS equivalent in React Native — analytics, crashlytics, messaging —
+ * and is configured from `GoogleService-Info.plist` /
  * `google-services.json`; auth is configured from `.env` (`src/config/env`).
  *
  * How each platform signs in is auth_lib's (`@sudobility/auth_lib/signin`):

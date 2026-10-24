@@ -17,6 +17,7 @@ interface BestResultProps {
   /** How many results the run has in all. */
   total: number;
   onSeeAll: () => void;
+  locationRequest?: boolean;
 }
 
 export default function BestResult({
@@ -24,6 +25,7 @@ export default function BestResult({
   reason,
   total,
   onSeeAll,
+  locationRequest = false,
 }: BestResultProps) {
   const { t } = useTranslation();
   return (
@@ -37,7 +39,7 @@ export default function BestResult({
       >
         {t('results.best')}
       </Text>
-      <ResultDetailView item={item} reason={reason} />
+      <ResultDetailView item={item} reason={reason} locationRequest={locationRequest} />
       {total > 1 ? (
         <Button
           variant='outline'

@@ -10,7 +10,7 @@
  * Everything JavaScript reads is configured here, from `.env`: the Firebase
  * JS SDK (auth on every platform), the Firebase China proxy, Google sign-in.
  * `GoogleService-Info.plist` and `google-services.json` are read by native
- * Firebase alone — analytics, crashlytics, messaging, remote config — and
+ * Firebase alone — analytics, crashlytics, messaging — and
  * nothing in `src/` reads either.
  */
 

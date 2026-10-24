@@ -15,17 +15,19 @@ import { useTranslation } from 'react-i18next';
 import type { ResultItem } from '@sudobility/raidr_agent_types';
 import SiteIcon from './SiteIcon';
 import type { SiteBadge } from '@/hooks/useSiteBadges';
+import { resultLocationText } from '@/lib/resultLocation';
 
 interface ResultCardProps {
   item: ResultItem;
   /** The sites this result is on, one per site (more than one when merged). */
   sites: SiteBadge[];
   onPress: () => void;
+  locationRequest?: boolean;
 }
 
 const ICON = 22;
 
-export default function ResultCard({ item, sites, onPress }: ResultCardProps) {
+export default function ResultCard({ item, sites, onPress, locationRequest = false }: ResultCardProps) {
   const { t } = useTranslation();
   const merged = sites.length > 1;
   return (
@@ -54,6 +56,11 @@ export default function ResultCard({ item, sites, onPress }: ResultCardProps) {
         {item.summary ? (
           <Text size='sm' color='muted' numberOfLines={3}>
             {item.summary}
+          </Text>
+        ) : null}
+        {locationRequest ? (
+          <Text size='xs' color='muted' className='mt-2' numberOfLines={2}>
+            {t('resultDetail.location')}: {resultLocationText(item) ?? t('resultDetail.locationUnavailable')}
           </Text>
         ) : null}
         <View

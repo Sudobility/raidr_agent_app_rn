@@ -17,7 +17,7 @@ let analyticsService: FirebaseAnalyticsService | null = null;
  *
  * This sets up:
  * - Storage service
- * - Firebase service (analytics, remote config)
+ * - Firebase service (analytics)
  * - Network service
  * - Info service (for toast notifications)
  */
@@ -30,13 +30,12 @@ export async function initializeAllServices(): Promise<FirebaseAnalyticsService>
   analyticsService = await initializeRNApp({
     firebaseOptions: {
       enableAnalytics: true,
-      enableRemoteConfig: true,
       enableMessaging: true,
     },
   });
 
   // Firebase Auth is the JS SDK, initialised lazily by AuthContext on every
-  // platform; native Firebase here is analytics, messaging and remote config.
+  // platform; native Firebase here is analytics and messaging.
 
   servicesInitialized = true;
   return analyticsService;
