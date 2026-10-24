@@ -30,7 +30,7 @@
         "@sudobility/raidr_agent_lib": "^0.0.14",
         "@sudobility/raidr_agent_types": "^0.0.12",
         "@sudobility/raidr_types": "^0.1.17",
-        "@sudobility/shapeshyft_engine": "^1.0.12",
+        "@sudobility/shapeshyft_engine": "^1.0.13",
         "@sudobility/signic_sdk": "^0.1.13",
         "@sudobility/types": "^1.9.76",
         "@tanstack/react-query": "~5.104.5",
@@ -775,7 +775,7 @@
 
     "@sudobility/raidr_types": ["@sudobility/raidr_types@0.1.17", "https://npm.pkg.github.com/download/@sudobility/raidr_types/0.1.17/f246af9df2af79da36479793940690428dd0e59f", { "peerDependencies": { "@sudobility/types": "^1.9.76", "zod": "^4.0.0" } }, "sha512-k6f4lshm8/Os7EVT7LDJrVeh3iGXm0Rbi5ceOLLs+pGXHNL9G7SFoAzyzKiuQNXIAcOeR7GwSkvF2L8a5i32NA=="],
 
-    "@sudobility/shapeshyft_engine": ["@sudobility/shapeshyft_engine@1.0.12", "https://npm.pkg.github.com/download/@sudobility/shapeshyft_engine/1.0.12/eb2fc50373abd3808ed16f948001f6e091ddea52", { "dependencies": { "@sudobility/types": "^1.9.72" }, "peerDependencies": { "@anthropic-ai/sdk": "^0.39.0", "@google/generative-ai": "^0.21.0", "groq-sdk": "^0.37.0", "openai": "^4.77.0", "sharp": "^0.35.4" } }, "sha512-gNVH89kzF7eVTwW+nXNKh1+eCEyjv3yluiiYUAw+xJfYsqbcKliMOFCT2Bs8RGczFC1juUCOscwbFlhCSlhsHA=="],
+    "@sudobility/shapeshyft_engine": ["@sudobility/shapeshyft_engine@1.0.13", "https://npm.pkg.github.com/download/@sudobility/shapeshyft_engine/1.0.13/b4c35f719de8742711ff25225297e5739a0e831d", { "dependencies": { "@sudobility/types": "^1.9.76" }, "peerDependencies": { "@anthropic-ai/sdk": "^0.39.0", "@google/generative-ai": "^0.21.0", "groq-sdk": "^0.37.0", "openai": "^4.77.0", "sharp": "^0.35.4" } }, "sha512-P3oJ7XfQzCJltBl7UVrNOCSzgoDVnSVs1q65JpG3OLjhScoKmMbtQ86m9jkwhdJ/uAFzgmk/tqy8DkZTSG3JAg=="],
 
     "@sudobility/signic_sdk": ["@sudobility/signic_sdk@0.1.13", "https://npm.pkg.github.com/download/@sudobility/signic_sdk/0.1.13/fdf1e46a6e5d24f145d5e0d6e736935587b40d6c", {}, "sha512-ZooaXFCBoE/mFV4jGIcEKSMIFSh76grK5IrV51KHX5Homx8yTQp/NZkc+ubvRBK6NYaKQtGrEA0NDazdp0Nu2g=="],
 
