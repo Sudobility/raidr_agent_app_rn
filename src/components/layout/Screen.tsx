@@ -12,13 +12,15 @@
  * - `fill` — the content takes the whole area and handles its own scrolling
  *   (a web view, a map).
  *
- * `footer` sits fixed under the content (a Next / Run bar). Bottom padding
- * clears the mobile tab bar.
+ * `footer` sits fixed under the content (a Next / Run bar). The scroller and
+ * the footer clear the native tab bar / home indicator through the scrolling
+ * insets rather than a measured tab-bar height, so the native bottom tab bar
+ * (and the desktop sidebar, where the bottom inset is 0) are both handled.
  */
 
 import React from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { useTabBarHeight } from '@/hooks/useTabBarHeight';
+import { StyleSheet, View } from 'react-native';
+import { SafeAreaScrollView, useSafeAreaInsets } from '@/components/safeArea';
 import NavBar from './NavBar';
 
 /** Widest a `center` column gets. */
@@ -51,8 +53,7 @@ export default function Screen({
   children,
   testID,
 }: ScreenProps) {
-  const tabBarHeight = useTabBarHeight();
-  const bottom = (footer ? 0 : tabBarHeight) + 24;
+  const insets = useSafeAreaInsets();
 
   return (
     <View className='flex-1 bg-background' testID={testID}>
@@ -64,13 +65,15 @@ export default function Screen({
       {layout === 'fill' ? (
         <View className='flex-1'>{children}</View>
       ) : (
-        <ScrollView
+        <SafeAreaScrollView
           className='flex-1'
           scrollEnabled={scrollEnabled}
+          // The NavBar owns the top; a footer owns the bottom (it insets
+          // itself), so the scroller only insets the bottom when there is none.
+          edges={footer ? { top: false, bottom: false } : undefined}
           contentContainerStyle={[
             layout === 'center' ? styles.center : styles.list,
             layout === 'center' && valign === 'top' ? styles.top : null,
-            { paddingBottom: bottom },
           ]}
           keyboardShouldPersistTaps='handled'
         >
@@ -79,12 +82,12 @@ export default function Screen({
           ) : (
             children
           )}
-        </ScrollView>
+        </SafeAreaScrollView>
       )}
       {footer ? (
         <View
           className='px-4 pt-3 bg-background border-t border-foreground/10 items-center'
-          style={{ paddingBottom: tabBarHeight + 12 }}
+          style={{ paddingBottom: insets.bottom + 12 }}
         >
           <View style={styles.column}>{footer}</View>
         </View>
@@ -100,8 +103,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 24,
+    paddingBottom: 24,
   },
   top: { justifyContent: 'flex-start' },
-  list: { padding: 16 },
+  list: { padding: 16, paddingBottom: 24 },
   column: { width: '100%', maxWidth: READABLE_WIDTH },
 });

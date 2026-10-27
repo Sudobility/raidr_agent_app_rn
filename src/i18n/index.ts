@@ -4,7 +4,7 @@
  * Loads translations from assets/locales and configures i18next.
  */
 
-import i18n from 'i18next';
+import i18n, { type InitOptions } from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { getLocales } from 'react-native-localize';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -53,7 +53,7 @@ i18n.use(initReactI18next).init({
   interpolation: {
     escapeValue: false,
   },
-});
+} as InitOptions);
 
 /**
  * Load stored language preference from AsyncStorage and apply it.

@@ -43,6 +43,11 @@ const config = {
     '@react-native-google-signin/google-signin': {
       platforms: { macos: null },
     },
+    // Native tab bar (Liquid Glass) is iOS/Android only; desktop uses the JS
+    // bottom-tab shell with TabSidebar.
+    'react-native-bottom-tabs': {
+      platforms: { macos: null, windows: null },
+    },
   },
   project: {
     macos: {

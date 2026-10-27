@@ -1,9 +1,17 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Platform, useColorScheme } from 'react-native';
+/**
+ * AppNavigator - Root navigation.
+ *
+ * Builds the shared tab config and hands it to AdaptiveTabbar, which renders the
+ * right chrome per OS: a Liquid Glass UITabBar on iOS (compact bottom bar on
+ * iPad), a native Material bar on Android, and a JS sidebar on macOS / Windows.
+ */
+
+import React, { useEffect } from 'react';
+import type { ImageSourcePropType } from 'react-native';
 import { colorScheme as nativewindColorScheme } from 'nativewind';
-import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useColorScheme } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import type { LinkingOptions } from '@react-navigation/native';
 import {
   ChatBubbleLeftRightIcon,
   ClockIcon,
@@ -14,6 +22,7 @@ import {
   ClockIcon as ClockIconSolid,
   Cog6ToothIcon as Cog6ToothIconSolid,
 } from 'react-native-heroicons/solid';
+import type { SvgProps } from 'react-native-svg';
 
 import {
   lightTheme,
@@ -27,129 +36,48 @@ import type { RootTabParamList } from './types';
 import { AskStack } from './AskStack';
 import { HistoryStack } from './HistoryStack';
 import { SettingsStack } from './SettingsStack';
-import { DesktopSidebar, type SidebarTab } from './DesktopSidebar';
+import { AdaptiveTabbar, type AdaptiveTab } from './AdaptiveTabbar';
 
-const isDesktop = Platform.OS === 'macos' || Platform.OS === 'windows';
+// Android native tab icons (iOS uses SF Symbols, desktop uses the heroicons).
+const askPng = require('../../assets/tabicons/ask.png') as ImageSourcePropType;
+const historyPng =
+  require('../../assets/tabicons/history.png') as ImageSourcePropType;
+const settingsPng =
+  require('../../assets/tabicons/settings.png') as ImageSourcePropType;
 
-const Tab = createBottomTabNavigator<RootTabParamList>();
+type HeroIcon = React.ComponentType<SvgProps & { size?: number }>;
 
-function renderAskIcon({
-  focused,
-  color,
-  size,
-}: {
-  focused: boolean;
-  color: string;
-  size: number;
-}) {
-  return focused ? (
-    <ChatBubbleLeftRightIconSolid color={color} size={size} />
-  ) : (
-    <ChatBubbleLeftRightIcon color={color} size={size} />
-  );
-}
+// Desktop sidebar icon: outline when idle, solid when focused.
+const sidebarIcon =
+  (Outline: HeroIcon, Solid: HeroIcon) =>
+  ({
+    focused,
+    color,
+    size,
+  }: {
+    focused: boolean;
+    color: string;
+    size: number;
+  }) =>
+    focused ? (
+      <Solid color={color} size={size} />
+    ) : (
+      <Outline color={color} size={size} />
+    );
 
-function renderHistoryIcon({
-  focused,
-  color,
-  size,
-}: {
-  focused: boolean;
-  color: string;
-  size: number;
-}) {
-  return focused ? (
-    <ClockIconSolid color={color} size={size} />
-  ) : (
-    <ClockIcon color={color} size={size} />
-  );
-}
-
-function renderSettingsIcon({
-  focused,
-  color,
-  size,
-}: {
-  focused: boolean;
-  color: string;
-  size: number;
-}) {
-  return focused ? (
-    <Cog6ToothIconSolid color={color} size={size} />
-  ) : (
-    <Cog6ToothIcon color={color} size={size} />
-  );
-}
-
-const tabComponents: Record<SidebarTab, React.ComponentType> = {
-  AskTab: AskStack,
-  HistoryTab: HistoryStack,
-  SettingsTab: SettingsStack,
+const linking: LinkingOptions<RootTabParamList> = {
+  prefixes: ['com.sudobility.raidr.agent://'],
+  config: {
+    screens: {
+      AskTab: 'ask',
+      HistoryTab: 'history',
+      SettingsTab: 'settings',
+    },
+  },
 };
 
-function DesktopNavigator({ theme }: { theme: typeof lightTheme }) {
-  const [activeTab, setActiveTab] = useState<SidebarTab>('AskTab');
-  const ActiveComponent = tabComponents[activeTab];
-
-  return (
-    <NavigationContainer theme={theme}>
-      <View style={styles.desktopContainer}>
-        <DesktopSidebar activeTab={activeTab} onTabPress={setActiveTab} />
-        <View style={styles.desktopContent}>
-          <ActiveComponent />
-        </View>
-      </View>
-    </NavigationContainer>
-  );
-}
-
-function MobileNavigator({ theme }: { theme: typeof lightTheme }) {
-  const { t } = useTranslation();
-  return (
-    <NavigationContainer theme={theme}>
-      <Tab.Navigator
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: theme.colors.primary,
-          tabBarInactiveTintColor: theme.dark
-            ? darkAppColors.textMuted
-            : lightAppColors.textMuted,
-          tabBarStyle: {
-            backgroundColor: theme.colors.card,
-            borderTopColor: theme.colors.border,
-          },
-        }}
-      >
-        <Tab.Screen
-          name='AskTab'
-          component={AskStack}
-          options={{
-            tabBarLabel: t('ask.title'),
-            tabBarIcon: renderAskIcon,
-          }}
-        />
-        <Tab.Screen
-          name='HistoryTab'
-          component={HistoryStack}
-          options={{
-            tabBarLabel: t('history.title'),
-            tabBarIcon: renderHistoryIcon,
-          }}
-        />
-        <Tab.Screen
-          name='SettingsTab'
-          component={SettingsStack}
-          options={{
-            tabBarLabel: t('settings.title'),
-            tabBarIcon: renderSettingsIcon,
-          }}
-        />
-      </Tab.Navigator>
-    </NavigationContainer>
-  );
-}
-
 export function AppNavigator() {
+  const { t } = useTranslation();
   const systemColorScheme = useColorScheme();
   const { theme: userTheme } = useSettingsStore();
   const isDark =
@@ -157,26 +85,56 @@ export function AppNavigator() {
       ? systemColorScheme === 'dark'
       : userTheme === 'dark';
   const theme = isDark ? darkTheme : lightTheme;
+  const appColors = isDark ? darkAppColors : lightAppColors;
 
-  // Keep NativeWind's colorScheme in lockstep with the resolved theme so any
-  // `dark:` variants follow the same source as the navigation chrome + content.
-  React.useEffect(() => {
+  // Keep NativeWind's color scheme (used by @sudobility/components-rn's `dark:`
+  // classes) in lockstep with the app's resolved theme, so library components
+  // match the navigation chrome even when the user overrides the system setting.
+  useEffect(() => {
     nativewindColorScheme.set(isDark ? 'dark' : 'light');
   }, [isDark]);
 
-  if (isDesktop) {
-    return <DesktopNavigator theme={theme} />;
-  }
+  const tabs: AdaptiveTab[] = React.useMemo(
+    () => [
+      {
+        name: 'AskTab',
+        component: AskStack,
+        label: t('ask.title'),
+        sfSymbol: 'bubble.left.and.bubble.right',
+        image: askPng,
+        renderIcon: sidebarIcon(
+          ChatBubbleLeftRightIcon,
+          ChatBubbleLeftRightIconSolid
+        ),
+      },
+      {
+        name: 'HistoryTab',
+        component: HistoryStack,
+        label: t('history.title'),
+        sfSymbol: 'clock',
+        image: historyPng,
+        renderIcon: sidebarIcon(ClockIcon, ClockIconSolid),
+      },
+      {
+        name: 'SettingsTab',
+        component: SettingsStack,
+        label: t('settings.title'),
+        sfSymbol: 'gearshape',
+        image: settingsPng,
+        renderIcon: sidebarIcon(Cog6ToothIcon, Cog6ToothIconSolid),
+      },
+    ],
+    [t]
+  );
 
-  return <MobileNavigator theme={theme} />;
+  return (
+    <AdaptiveTabbar
+      tabs={tabs}
+      theme={theme}
+      direction='ltr'
+      linking={linking}
+      activeTintColor={theme.colors.primary}
+      inactiveTintColor={appColors.textMuted}
+    />
+  );
 }
-
-const styles = StyleSheet.create({
-  desktopContainer: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  desktopContent: {
-    flex: 1,
-  },
-});

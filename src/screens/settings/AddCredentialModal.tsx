@@ -24,7 +24,7 @@ import {
   useTheme,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
+import { BottomTabBarHeightContext } from 'react-native-bottom-tabs';
 import type { AddCredentialStackParamList } from '@/navigation/types';
 import FindSiteScreen from '@/screens/FindSiteScreen';
 import LoginScreen from '@/screens/LoginScreen';
