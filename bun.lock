@@ -96,6 +96,7 @@
     },
   },
   "patchedDependencies": {
+    "react-native-macos@0.83.0": "patches/react-native-macos@0.83.0.patch",
     "react-native-svg@15.16.0": "patches/react-native-svg@15.16.0.patch",
     "react-native-bottom-tabs@1.5.0": "patches/react-native-bottom-tabs@1.5.0.patch",
   },
