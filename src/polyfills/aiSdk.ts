@@ -12,20 +12,22 @@
  *
  * Sources, all pure JS so they run on iOS, Android, macOS and Windows alike:
  *   - streams:            `web-streams-polyfill` (ponyfill entry, installed below)
- *   - TextDecoder,
- *     TextEncoderStream,
- *     TextDecoderStream:  Expo SDK 54's own implementations (`expo/src/winter`)
+ *   - TextDecoder:        `text-encoding`
+ *   - TextEncoderStream,
+ *     TextDecoderStream:  `@stardazed/streams-text-encoding` (wraps the
+ *                         TransformStream + TextDecoder/TextEncoder globals
+ *                         above — the same approach Expo's `winter` used, now
+ *                         without the `expo` dependency)
  *   - structuredClone:    `@ungap/structured-clone` (what Expo uses too)
  *
  * Each global is installed only when missing, so a runtime that already has
  * one (a future Hermes, the Jest/Node environment) keeps its native version.
  *
- * Not covered here, and needed before `useChat` can stream on device: React
- * Native's built-in `fetch` does not expose `response.body` as a stream. Pass
- * a streaming fetch to the transport — `expo/fetch` on iOS and Android
- * (`new DefaultChatTransport({ api, fetch: expoFetch as unknown as typeof
- * fetch })`). macOS and Windows have no `expo/fetch`; they need their own
- * streaming fetch when the feature lands.
+ * Streaming fetch is handled separately: React Native's built-in `fetch` does
+ * not expose `response.body` as a stream, so iOS/Android use
+ * `react-native-fetch-api`'s streaming `fetch` (see `src/lib/runTransport.ts`),
+ * which relies on the `ReadableStream`/`TextDecoder` globals installed here.
+ * macOS and Windows keep the built-in buffering `fetch`.
  *
  * **Import this from the app entry before anything that imports `ai`.**
  *
@@ -67,19 +69,16 @@ installIfMissing(
 installIfMissing('CountQueuingStrategy', () => PolyCountQueuingStrategy);
 
 // Required lazily (and as untyped `require`) so the class definitions only
-// evaluate after the stream globals above exist, and so tsc does not
-// type-check Expo's internal TypeScript sources.
-installIfMissing(
-  'TextDecoder',
-  () => require('expo/src/winter/TextDecoder').TextDecoder
-);
+// evaluate after the stream globals above exist. TextDecoder must be installed
+// before the stream wrappers, which construct one from the global.
+installIfMissing('TextDecoder', () => require('text-encoding').TextDecoder);
 installIfMissing(
   'TextDecoderStream',
-  () => require('expo/src/winter/TextDecoderStream').TextDecoderStream
+  () => require('@stardazed/streams-text-encoding').TextDecoderStream
 );
 installIfMissing(
   'TextEncoderStream',
-  () => require('expo/src/winter/TextDecoderStream').TextEncoderStream
+  () => require('@stardazed/streams-text-encoding').TextEncoderStream
 );
 
 installIfMissing('structuredClone', () => structuredCloneImpl);

@@ -2,6 +2,32 @@ const fs = require('fs');
 const path = require('path');
 
 /**
+ * When the app's react-native.config.js supplies a library's `platforms.android`
+ * (to also switch the library off on desktop), the CLI takes the android block
+ * verbatim. A library's own `cmakeListsPath` / `cxxModuleCMakeListsPath` are
+ * RELATIVE to its `android/` source dir, and the CLI absolutizes them only when
+ * it owns the whole android block. On **RN 0.83** a path supplied here is NOT
+ * re-joined, so a relative one lands in Android-autolinking.cmake as a relative
+ * `add_subdirectory(...)` and CMake fails with "not an existing directory"
+ * (react-native-firebase ships a relative path). So pre-resolve those paths to
+ * absolute, matching what the CLI produces for libraries it auto-detects. NOTE:
+ * this is the opposite of what RN 0.81's CLI needed — the behaviour flipped
+ * between 0.81 and 0.83.
+ */
+function resolveAndroidCmakePaths(packageDir, platforms) {
+  const android = platforms.android;
+  if (!android) return platforms;
+  const androidDir = path.join(packageDir, 'android');
+  const resolved = { ...android };
+  for (const key of ['cmakeListsPath', 'cxxModuleCMakeListsPath']) {
+    if (android[key] && !path.isAbsolute(android[key])) {
+      resolved[key] = path.join(androidDir, android[key]);
+    }
+  }
+  return { ...platforms, android: resolved };
+}
+
+/**
  * Disable a native Firebase package on the given desktop platforms (native
  * Firebase — analytics, crashlytics, messaging — is mobile
  * only; auth is the Firebase JS SDK everywhere) while keeping the package's
@@ -16,14 +42,12 @@ const path = require('path');
  */
 function nativeFirebaseWithout(packageName, disabledPlatforms) {
   // Loaded by file path: the package's `exports` map does not expose this file.
-  const libraryConfig = path.join(
-    __dirname,
-    'node_modules',
-    packageName,
-    'react-native.config.js'
-  );
+  const packageDir = path.join(__dirname, 'node_modules', packageName);
+  const libraryConfig = path.join(packageDir, 'react-native.config.js');
   const library = fs.existsSync(libraryConfig) ? require(libraryConfig) : {};
-  const platforms = { ...(library.dependency?.platforms ?? {}) };
+  const platforms = resolveAndroidCmakePaths(packageDir, {
+    ...(library.dependency?.platforms ?? {}),
+  });
   for (const platform of disabledPlatforms) {
     platforms[platform] = null;
   }
@@ -42,6 +66,12 @@ const config = {
     // Google Sign-In native module doesn't support macOS — desktop uses WebAuth PKCE flow
     '@react-native-google-signin/google-signin': {
       platforms: { macos: null },
+    },
+    // Geolocation (replacing expo-location) is iOS/Android only; macOS and
+    // Windows read location through the native DeviceLocationModule bridge
+    // (see src/lib/deviceLocation.macos.ts / .windows.ts).
+    '@react-native-community/geolocation': {
+      platforms: { macos: null, windows: null },
     },
     // Native tab bar (Liquid Glass) is iOS/Android only; desktop uses the JS
     // bottom-tab shell with TabSidebar.

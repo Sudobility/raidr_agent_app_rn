@@ -1,6 +1,17 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
 buildscript {
+  ext {
+    // Previously injected by Expo's `expo-root-project` gradle plugin; now
+    // declared here as a bare React Native project (values match RN 0.83 /
+    // the rest of the family, e.g. music_app_rn).
+    buildToolsVersion = "36.0.0"
+    minSdkVersion = 24
+    compileSdkVersion = 36
+    targetSdkVersion = 36
+    ndkVersion = "27.1.12297006"
+    kotlinVersion = "2.1.20"
+  }
   repositories {
     google()
     mavenCentral()
@@ -23,5 +34,4 @@ allprojects {
   }
 }
 
-apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"

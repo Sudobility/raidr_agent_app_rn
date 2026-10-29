@@ -10,16 +10,17 @@ import React
 /// `_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`) for an app
 /// with no scene adoption at all, where earlier SDKs only warned.
 ///
-/// Once an app adopts scenes, UIKit stops delivering URL opens, universal links
-/// and the active/background transitions to `UIApplicationDelegate`. The app
-/// delegate (and, in Expo apps, its subscribers) and `RCTLinkingManager` still
-/// listen there, so every scene callback below is forwarded to the matching
-/// app delegate method when it implements one.
+/// Once an app adopts scenes, UIKit stops delivering URL opens and universal
+/// links to `UIApplicationDelegate`. `RCTLinkingManager` (so JS `Linking`) and
+/// the Google OAuth redirect still expect them there, so the url callbacks
+/// below are forwarded to the matching `AppDelegate` method. The active /
+/// background lifecycle is not forwarded: React Native, Firebase and Google
+/// observe the `UIApplication` notifications directly, not the delegate.
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
   var window: UIWindow?
 
-  private var applicationDelegate: UIApplicationDelegate? {
-    UIApplication.shared.delegate
+  private var appDelegate: AppDelegate? {
+    UIApplication.shared.delegate as? AppDelegate
   }
 
   func scene(
@@ -28,7 +29,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     options connectionOptions: UIScene.ConnectionOptions
   ) {
     guard let windowScene = scene as? UIWindowScene else { return }
-    guard let appDelegate = UIApplication.shared.delegate as? AppDelegate,
+    guard let appDelegate = appDelegate,
           let factory = appDelegate.reactNativeFactory
     else { return }
 
@@ -59,6 +60,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
   // MARK: - URLs and universal links
 
   func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+    guard let appDelegate = appDelegate else { return }
     for context in URLContexts {
       var options: [UIApplication.OpenURLOptionsKey: Any] = [
         .openInPlace: context.options.openInPlace,
@@ -69,31 +71,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
       if let annotation = context.options.annotation {
         options[.annotation] = annotation
       }
-      _ = applicationDelegate?.application?(
-        UIApplication.shared, open: context.url, options: options)
+      _ = appDelegate.application(UIApplication.shared, open: context.url, options: options)
     }
   }
 
   func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
-    _ = applicationDelegate?.application?(
-      UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
-  }
-
-  // MARK: - Life cycle, forwarded to the app delegate
-
-  func sceneDidBecomeActive(_ scene: UIScene) {
-    applicationDelegate?.applicationDidBecomeActive?(UIApplication.shared)
-  }
-
-  func sceneWillResignActive(_ scene: UIScene) {
-    applicationDelegate?.applicationWillResignActive?(UIApplication.shared)
-  }
-
-  func sceneWillEnterForeground(_ scene: UIScene) {
-    applicationDelegate?.applicationWillEnterForeground?(UIApplication.shared)
-  }
-
-  func sceneDidEnterBackground(_ scene: UIScene) {
-    applicationDelegate?.applicationDidEnterBackground?(UIApplication.shared)
+    _ = appDelegate?.application(UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
   }
 }

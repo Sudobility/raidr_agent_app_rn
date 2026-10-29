@@ -58,3 +58,14 @@ jest.mock(
   'react-native-safe-area-context',
   () => require('react-native-safe-area-context/jest/mock').default
 );
+
+// Geolocation (replacing expo-location); no suite uses the device location,
+// but mock it so resolving the native module never touches the real bridge.
+jest.mock('@react-native-community/geolocation', () => ({
+  __esModule: true,
+  default: {
+    getCurrentPosition: jest.fn(),
+    requestAuthorization: jest.fn(),
+    setRNConfiguration: jest.fn(),
+  },
+}));

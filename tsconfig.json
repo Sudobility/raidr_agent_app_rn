@@ -1,8 +1,12 @@
 {
-  "extends": "expo/tsconfig.base",
+  "extends": "@react-native/typescript-config",
   "compilerOptions": {
     "ignoreDeprecations": "6.0",
     "strict": true,
+    // @react-native/typescript-config ships no DOM lib; this app's web-facing
+    // code (fetch/BodyInit/AbortSignal/ReadableStream, the Vercel AI SDK, viem)
+    // needs it — expo/tsconfig.base used to provide it.
+    "lib": ["esnext", "dom", "dom.iterable"],
     "baseUrl": ".",
     "paths": {
       "@/*": [

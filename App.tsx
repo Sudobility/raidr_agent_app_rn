@@ -13,10 +13,10 @@ import '@/config/designTheme'; // Activate the design-system theme (before any v
 import 'react-native-gesture-handler';
 import '@/i18n'; // Initialize i18n
 import React, { useState, useEffect } from 'react';
-import { NativeModules, StyleSheet } from 'react-native';
+import { NativeModules, StatusBar, StyleSheet, useColorScheme } from 'react-native';
 NativeModules.DevLoadingView?.hide();
 import { loadStoredLanguagePreference } from '@/i18n';
-import { StatusBar } from 'expo-status-bar';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -48,6 +48,14 @@ const styles = StyleSheet.create({
 
 function AppContent() {
   const { isReady } = useAuth();
+  // Replaces expo-status-bar's `style='auto'`: resolve the active theme the
+  // same way AppNavigator does and pick the bar content colour to match.
+  const systemColorScheme = useColorScheme();
+  const { theme: userTheme } = useSettingsStore();
+  const isDark =
+    userTheme === 'system'
+      ? systemColorScheme === 'dark'
+      : userTheme === 'dark';
 
   if (!isReady) {
     return <SplashScreen />;
@@ -56,7 +64,7 @@ function AppContent() {
   return (
     <>
       <AppNavigator />
-      <StatusBar style='auto' />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
     </>
   );
 }

@@ -1,14 +1,15 @@
-import Expo
+import UIKit
 import React
+import React_RCTAppDelegate
 import ReactAppDependencyProvider
 import FirebaseCore
 import FirebaseMessaging
 
-@UIApplicationMain
-public class AppDelegate: ExpoAppDelegate, MessagingDelegate {
+@main
+class AppDelegate: UIResponder, UIApplicationDelegate, MessagingDelegate {
   var window: UIWindow?
 
-  var reactNativeDelegate: ExpoReactNativeFactoryDelegate?
+  var reactNativeDelegate: ReactNativeDelegate?
   var reactNativeFactory: RCTReactNativeFactory?
 
   // The window and the `startReactNative` call live in `SceneDelegate` now —
@@ -19,7 +20,7 @@ public class AppDelegate: ExpoAppDelegate, MessagingDelegate {
   // delegate reaches back into it through `UIApplication.shared.delegate`.
   var launchOptions: [UIApplication.LaunchOptionsKey: Any]?
 
-  public override func application(
+  func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
@@ -29,19 +30,17 @@ public class AppDelegate: ExpoAppDelegate, MessagingDelegate {
     application.registerForRemoteNotifications()
 
     let delegate = ReactNativeDelegate()
-    let factory = ExpoReactNativeFactory(delegate: delegate)
+    let factory = RCTReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
 
     reactNativeDelegate = delegate
     reactNativeFactory = factory
-    bindReactNativeFactory(factory)
-
     self.launchOptions = launchOptions
 
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    return true
   }
 
-  public func application(
+  func application(
     _ application: UIApplication,
     configurationForConnecting connectingSceneSession: UISceneSession,
     options: UIScene.ConnectionOptions
@@ -52,49 +51,51 @@ public class AppDelegate: ExpoAppDelegate, MessagingDelegate {
     )
   }
 
-  // Linking API
-  public override func application(
+  // Custom-scheme opens and the OAuth redirect, routed through RCTLinkingManager
+  // so JS `Linking` receives the url. Called from
+  // `SceneDelegate.scene(_:openURLContexts:)`.
+  func application(
     _ app: UIApplication,
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey: Any] = [:]
   ) -> Bool {
-    return super.application(app, open: url, options: options) || RCTLinkingManager.application(app, open: url, options: options)
+    RCTLinkingManager.application(app, open: url, options: options)
   }
 
-  // Universal Links
-  public override func application(
+  // Universal links, routed through RCTLinkingManager. Called from
+  // `SceneDelegate.scene(_:continue:)`.
+  func application(
     _ application: UIApplication,
     continue userActivity: NSUserActivity,
     restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
   ) -> Bool {
-    let result = RCTLinkingManager.application(application, continue: userActivity, restorationHandler: restorationHandler)
-    return super.application(application, continue: userActivity, restorationHandler: restorationHandler) || result
+    RCTLinkingManager.application(
+      application,
+      continue: userActivity,
+      restorationHandler: restorationHandler
+    )
   }
 
-  // Forward APNS token to Firebase Messaging
-  public override func application(
+  // Forward the APNS token to Firebase Messaging.
+  func application(
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
     Messaging.messaging().apnsToken = deviceToken
-    super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
   }
 
-  // FCM token refresh
-  public func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {}
+  // FCM token refresh.
+  func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {}
 }
 
-class ReactNativeDelegate: ExpoReactNativeFactoryDelegate {
-  // Extension point for config-plugins
-
+class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
   override func sourceURL(for bridge: RCTBridge) -> URL? {
-    // needed to return the correct URL for expo-dev-client.
     bridge.bundleURL ?? bundleURL()
   }
 
   override func bundleURL() -> URL? {
 #if DEBUG
-    // Use port 8094 to avoid conflicts with other React Native apps
+    // Use port 8094 to avoid conflicts with other React Native apps.
     RCTBundleURLProvider.sharedSettings().jsLocation = "localhost:8094"
     return RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
 #else

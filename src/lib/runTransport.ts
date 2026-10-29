@@ -20,13 +20,23 @@
  * message stream (`{ type: 'data-<key>', id?, data }`), so the server contract
  * is unchanged.
  *
- * Desktop React Native fetch implementations buffer response bodies. On those
- * hosts we parse the same UI-message stream after the run completes, while
- * mobile continues to render each part as it arrives.
+ * React Native's built-in `fetch` buffers the response body (it exposes no
+ * streaming `response.body`), so on iOS and Android we POST with
+ * `react-native-fetch-api`'s streaming `fetch` — its `Response.body` is a real
+ * `ReadableStream` fed by RN's native networking progress events — and read
+ * each SSE `data-*` chunk as it arrives. That is the incremental, part-by-part
+ * rendering `expo/fetch` provided before Expo was removed. macOS and Windows
+ * keep the built-in `fetch`, which buffers, so there the same UI-message stream
+ * is parsed after the run completes. The reader below handles both, branching
+ * on `response.body?.getReader`.
  */
 
 import { Platform } from 'react-native';
-import { fetch as expoFetch } from 'expo/fetch';
+// Streaming `fetch` whose `Response.body` is a ReadableStream (text streaming),
+// backed by RN's native networking. The ReadableStream/TextDecoder globals it
+// needs are installed by `src/polyfills/aiSdk.ts` at app entry.
+import { fetch as streamingFetch } from 'react-native-fetch-api';
+
 import type {
   RaidrAgentClient,
   TokenGetter,
@@ -64,6 +74,11 @@ export interface RunCallbacks {
 export interface RunHandle {
   abort: () => void;
 }
+
+/** `RequestInit` plus react-native-fetch-api's non-standard streaming flag. */
+type StreamingRequestInit = RequestInit & {
+  reactNative?: { textStreaming?: boolean };
+};
 
 /** The raw shape of a UI-message-stream chunk we care about. */
 interface RawChunk {
@@ -108,20 +123,30 @@ export function startRun(
   const run = async (): Promise<void> => {
     try {
       const token = await getToken();
-      const fetchRun =
+      const url = client.runsUrl();
+      const headers = {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+      const requestBody = JSON.stringify(runRequest);
+      // iOS/Android stream the body incrementally; macOS/Windows fall back to
+      // the built-in fetch, which buffers (the reader below handles both).
+      const response =
         Platform.OS === 'ios' || Platform.OS === 'android'
-          ? expoFetch
-          : globalThis.fetch;
-      const response = await fetchRun(client.runsUrl(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'text/event-stream',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(runRequest),
-        signal: controller.signal,
-      });
+          ? await streamingFetch(url, {
+              method: 'POST',
+              headers,
+              body: requestBody,
+              signal: controller.signal,
+              reactNative: { textStreaming: true },
+            } as StreamingRequestInit)
+          : await globalThis.fetch(url, {
+              method: 'POST',
+              headers,
+              body: requestBody,
+              signal: controller.signal,
+            });
 
       if (!response.ok) {
         const detail = await response.text().catch(() => '');
