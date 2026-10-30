@@ -76,11 +76,18 @@ jest.mock('@/config/constants', () => ({
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
 }));
-jest.mock('@react-navigation/native', () => ({
-  useTheme: () => ({ dark: false }),
-  // The screen's NavBar: a stack root, nothing to go back to.
-  useNavigation: () => ({ canGoBack: () => false, goBack: jest.fn() }),
-}));
+jest.mock('@react-navigation/native', () => {
+  // The real container/independent-tree, so `MasterDetailLayout`'s own
+  // navigation stack (its narrow drill-in) mounts in the test; its default
+  // theme carries the `colors` the native-stack header reads.
+  const actual = jest.requireActual('@react-navigation/native');
+  return {
+    ...actual,
+    useTheme: () => actual.DefaultTheme,
+    // The screen's NavBar: a stack root, nothing to go back to.
+    useNavigation: () => ({ canGoBack: () => false, goBack: jest.fn() }),
+  };
+});
 
 const navigate = jest.fn();
 const props = { navigation: { navigate } } as unknown as SettingsScreenProps;
@@ -95,7 +102,7 @@ function renderScreen(): ReactTestRenderer {
 
 /** Lay the split view out at `width`, as the native layout pass would. */
 function layOut(tree: ReactTestRenderer, width: number): void {
-  const view = tree.root.find(n => n.props.testID === 'split-view');
+  const view = tree.root.find(n => n.props.testID === 'master-detail');
   act(() => {
     view.props.onLayout({ nativeEvent: { layout: { width, height: 800 } } });
   });

@@ -1,22 +1,24 @@
 /**
- * SplitView — master/detail. At iOS's regular width ({@link REGULAR_WIDTH},
- * measured on the view itself, so the desktop sidebar counts) a fixed-width
- * list on the left, a hairline, and the chosen item's detail on the right
- * under its own heading, held to the readable width. Narrower, the list
- * alone: choosing an entry is the screen's to handle (push a detail screen).
+ * SplitView — master/detail over the shared `MasterDetailLayout`.
+ *
+ * At iOS's regular width ({@link REGULAR_WIDTH}, which `MasterDetailLayout`
+ * measures on the view itself, so the desktop sidebar counts) a fixed-width
+ * list on the left, a hairline, and the chosen item's detail on the right under
+ * its own heading, held to the readable width. Narrower, the list alone:
+ * choosing an entry is the screen's to handle (push a detail screen), so this
+ * never asks the layout to drill in — `MasterDetailLayout` shows the master
+ * and the screen pushes its own route.
  *
  * Use inside `Screen layout='fill'`.
  */
 
-import React, { useState } from 'react';
+import React from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  type LayoutChangeEvent,
-} from 'react-native';
-import { Text } from '@sudobility/components-rn';
+  MasterDetailLayout,
+  Text,
+  useMasterDetail,
+} from '@sudobility/components-rn';
 import { useTabBarHeight } from '@/hooks/useTabBarHeight';
 import { READABLE_WIDTH } from './Screen';
 import { REGULAR_WIDTH } from './TileGrid';
@@ -48,57 +50,79 @@ export default function SplitView({
   detail,
   detailScrolls = false,
 }: SplitViewProps) {
-  const [width, setWidth] = useState(0);
-  const bottom = useTabBarHeight() + 24;
-  const split = isSplitWidth(width);
-
-  const onLayout = (event: LayoutChangeEvent) => {
-    const next = Math.round(event.nativeEvent.layout.width);
-    if (next !== width) {
-      setWidth(next);
-    }
-  };
-
   return (
-    <View className='flex-1 flex-row' onLayout={onLayout} testID='split-view'>
-      <ScrollView
-        style={split ? styles.master : styles.full}
-        contentContainerStyle={[
-          split ? styles.masterContent : styles.listContent,
-          { paddingBottom: bottom },
-        ]}
-      >
-        {split ? (
-          renderMaster(true)
-        ) : (
-          <View style={styles.column}>{renderMaster(false)}</View>
-        )}
-      </ScrollView>
-      {split ? (
-        <>
-          <View className='bg-border' style={styles.divider} />
-          {detailScrolls ? (
-            <View style={styles.full} testID='split-detail'>
-              {detail}
-            </View>
-          ) : (
-            <ScrollView
-              style={styles.full}
-              contentContainerStyle={[styles.detail, { paddingBottom: bottom }]}
-              keyboardShouldPersistTaps='handled'
-              testID='split-detail'
-            >
-              <View style={styles.column}>
-                <Text size='2xl' weight='bold' className='mb-4 px-1'>
-                  {detailTitle}
-                </Text>
-                {detail}
-              </View>
-            </ScrollView>
-          )}
-        </>
-      ) : null}
-    </View>
+    <MasterDetailLayout
+      masterWidth={MASTER_WIDTH}
+      breakpoint={REGULAR_WIDTH}
+      master={<MasterPane renderMaster={renderMaster} />}
+      detail={
+        <DetailPane
+          detailTitle={detailTitle}
+          detail={detail}
+          detailScrolls={detailScrolls}
+        />
+      }
+    />
+  );
+}
+
+/** The list, in its scroll chrome, told by the layout whether a detail is beside it. */
+function MasterPane({
+  renderMaster,
+}: {
+  renderMaster: (split: boolean) => React.ReactNode;
+}) {
+  const { isWide } = useMasterDetail();
+  const bottom = useTabBarHeight() + 24;
+  return (
+    <ScrollView
+      style={styles.full}
+      contentContainerStyle={[
+        isWide ? styles.masterContent : styles.listContent,
+        { paddingBottom: bottom },
+      ]}
+    >
+      {isWide ? (
+        renderMaster(true)
+      ) : (
+        <View style={styles.column}>{renderMaster(false)}</View>
+      )}
+    </ScrollView>
+  );
+}
+
+/** The chosen entry's detail, under its heading and held to the readable width. */
+function DetailPane({
+  detailTitle,
+  detail,
+  detailScrolls,
+}: {
+  detailTitle: string;
+  detail: React.ReactNode;
+  detailScrolls: boolean;
+}) {
+  const bottom = useTabBarHeight() + 24;
+  if (detailScrolls) {
+    return (
+      <View style={styles.full} testID='split-detail'>
+        {detail}
+      </View>
+    );
+  }
+  return (
+    <ScrollView
+      style={styles.full}
+      contentContainerStyle={[styles.detail, { paddingBottom: bottom }]}
+      keyboardShouldPersistTaps='handled'
+      testID='split-detail'
+    >
+      <View style={styles.column}>
+        <Text size='2xl' weight='bold' className='mb-4 px-1'>
+          {detailTitle}
+        </Text>
+        {detail}
+      </View>
+    </ScrollView>
   );
 }
 
@@ -167,10 +191,8 @@ export function SplitMenuList({
 
 const styles = StyleSheet.create({
   full: { flex: 1 },
-  master: { width: MASTER_WIDTH, flexGrow: 0 },
   masterContent: { padding: 16 },
   listContent: { paddingHorizontal: 16, paddingTop: 24, alignItems: 'center' },
   column: { width: '100%', maxWidth: READABLE_WIDTH },
   detail: { paddingHorizontal: 24, paddingTop: 24, alignItems: 'center' },
-  divider: { width: StyleSheet.hairlineWidth },
 });

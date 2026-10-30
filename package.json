@@ -21,7 +21,9 @@
     "localize": "bash scripts/localize.sh",
     "localize:local": "bash scripts/localize.sh http://localhost:8021/api/v1/translate/jie9cytr/starter",
     "verify": "bun run typecheck && bun run lint && bun run test:unit",
-    "test": "jest --passWithNoTests"
+    "test": "jest --passWithNoTests",
+    "patches:sync": "bash ../workflows/scripts/sync_rn_patches.sh --project ${PWD##*/}",
+    "store": "bash scripts/store.sh"
   },
   "dependencies": {
     "@ai-sdk/react": "~4.0.130",
@@ -43,11 +45,11 @@
     "@scure/bip39": "~2.4.0",
     "@stardazed/streams-text-encoding": "~1.0.2",
     "@sudobility/auth_lib": "^0.0.121",
-    "@sudobility/building_blocks_rn": "^0.0.98",
-    "@sudobility/components-rn": "^1.0.133",
+    "@sudobility/building_blocks_rn": "^0.0.99",
+    "@sudobility/components-rn": "^1.0.134",
     "@sudobility/design": "^1.1.66",
     "@sudobility/di": "^1.5.82",
-    "@sudobility/di_rn": "^0.1.169",
+    "@sudobility/di_rn": "^0.1.170",
     "@sudobility/raidr_agent_client": "^0.0.14",
     "@sudobility/raidr_agent_lib": "^0.0.16",
     "@sudobility/raidr_agent_types": "^0.0.12",
