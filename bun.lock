@@ -29,9 +29,9 @@
         "@sudobility/design": "^1.1.68",
         "@sudobility/di": "^1.5.84",
         "@sudobility/di_rn": "^0.1.175",
-        "@sudobility/raidr_agent_client": "^0.0.15",
-        "@sudobility/raidr_agent_lib": "^0.0.17",
-        "@sudobility/raidr_agent_types": "^0.0.13",
+        "@sudobility/raidr_agent_client": "^0.0.16",
+        "@sudobility/raidr_agent_lib": "^0.0.18",
+        "@sudobility/raidr_agent_types": "^0.0.14",
         "@sudobility/raidr_types": "^0.1.18",
         "@sudobility/shapeshyft_engine": "^1.0.14",
         "@sudobility/signic_sdk": "^0.1.13",
@@ -848,11 +848,11 @@
 
     "@sudobility/di_rn": ["@sudobility/di_rn@0.1.175", "https://npm.pkg.github.com/download/@sudobility/di_rn/0.1.175/806cdb7f79f87f15e09f6ae0dfc74018f6bb1abf", { "peerDependencies": { "@sudobility/components-rn": "^1.0.138", "@sudobility/di": "^1.5.84", "@sudobility/types": "^1.9.78", "react": "^18.0.0 || ^19.0.0", "react-native": ">=0.72.0" } }, "sha512-bfvAMWIA4W20/9xcotIYpYCAFd711PQyGXYZbvfLD+1nbjo2Q4nVqnA/bpG5riHBtL/pITWvN6oA6L/dYvDFyA=="],
 
-    "@sudobility/raidr_agent_client": ["@sudobility/raidr_agent_client@0.0.15", "https://npm.pkg.github.com/download/@sudobility/raidr_agent_client/0.0.15/c890d3b23097f7d5ba9beb87ce0397abaa1bdc91", { "peerDependencies": { "@sudobility/types": "^1.9.78", "@tanstack/react-query": ">=5.0.0", "react": ">=18.0.0" } }, "sha512-f38yygQymA3kwktJkzg4zO1caB67xfd0yQ6CpJa/0RRl1Uyx5X6+2rccsSh7OBEcg+2/h/oDxprOJAhySwNrwQ=="],
+    "@sudobility/raidr_agent_client": ["@sudobility/raidr_agent_client@0.0.16", "https://npm.pkg.github.com/download/@sudobility/raidr_agent_client/0.0.16/934f6d14ccc89d76c3b9fb612b1731f9fc878c54", { "peerDependencies": { "@sudobility/types": "^1.9.78", "@tanstack/react-query": ">=5.0.0", "react": ">=18.0.0" } }, "sha512-5XXE2rV1swrHijMo43Xta5GOgZgPJOnNfPKQioDASpYWHA0fEt+7sGmGEVx7cN1re01wZYEI/SUqeRt4WTBzZA=="],
 
-    "@sudobility/raidr_agent_lib": ["@sudobility/raidr_agent_lib@0.0.17", "https://npm.pkg.github.com/download/@sudobility/raidr_agent_lib/0.0.17/a594b3633b849d7bd2e218f7640859d65769729d", { "dependencies": { "@sudobility/raidr_types": "^0.1.18" }, "peerDependencies": { "@sudobility/raidr_agent_client": "^0.0.15", "@sudobility/raidr_agent_types": "^0.0.13", "@sudobility/types": "^1.9.78", "@tanstack/react-query": ">=5.0.0", "react": ">=18.0.0", "zod": "^4.0.0", "zustand": ">=5.0.0" } }, "sha512-IYWr45kJW3rr2AXbPcn30wc12bQLoZaVc4K3tZjfKzY8vXl2G78B/zA/s4glhy4RzZrcF03SzKyihmHnQ9thtA=="],
+    "@sudobility/raidr_agent_lib": ["@sudobility/raidr_agent_lib@0.0.18", "https://npm.pkg.github.com/download/@sudobility/raidr_agent_lib/0.0.18/409c2f29a067d2f9a81210de210947310ca5d877", { "dependencies": { "@sudobility/raidr_types": "^0.1.18" }, "peerDependencies": { "@sudobility/raidr_agent_client": "^0.0.16", "@sudobility/raidr_agent_types": "^0.0.14", "@sudobility/types": "^1.9.78", "@tanstack/react-query": ">=5.0.0", "react": ">=18.0.0", "zod": "^4.0.0", "zustand": ">=5.0.0" } }, "sha512-C/aH9HaXr6hLj6k8A9zrjl6PwKHS0cj75VqgkJee6ZTXh+dsmM0o0wNhpiVOe+jQ+RK0MSCN2zcxwrNKiXI21w=="],
 
-    "@sudobility/raidr_agent_types": ["@sudobility/raidr_agent_types@0.0.13", "https://npm.pkg.github.com/download/@sudobility/raidr_agent_types/0.0.13/499c21cf05ee0c6b45fa93261f0bb7fab6968790", { "peerDependencies": { "@sudobility/raidr_types": "^0.1.17", "@sudobility/types": "^1.9.78" } }, "sha512-KIZ+SDzqkx9B+C2zQyPXuOPysiz83xy1avEygufUZeFVKftJVRMlog4u2TDEji5WFtRA/Yxq8vhi8swOstdGyQ=="],
+    "@sudobility/raidr_agent_types": ["@sudobility/raidr_agent_types@0.0.14", "https://npm.pkg.github.com/download/@sudobility/raidr_agent_types/0.0.14/2d1f5aef9de3b777769a72165f9a33bc5121af6e", { "peerDependencies": { "@sudobility/raidr_types": "^0.1.18", "@sudobility/types": "^1.9.78" } }, "sha512-kSAUgqlHa8giP88f0Jo2orakoRWYpZcMxyAqXvIxHvP5Askuymv6gnaKHsERB+rXaz8PLOaZoTeg/HSwynGHAw=="],
 
     "@sudobility/raidr_types": ["@sudobility/raidr_types@0.1.18", "https://npm.pkg.github.com/download/@sudobility/raidr_types/0.1.18/a914eb311d9b82f438357d4d68f15d34f609b904", { "peerDependencies": { "@sudobility/types": "^1.9.78", "zod": "^4.0.0" } }, "sha512-o66R+yX8nxZ/pZKEhJz0ge2GhCnDyYfIDUMeYa39LmM+9isZb/t/lXYYuFSLDbqJzS6PTirO9AVKJvK9LrHZDA=="],
 
