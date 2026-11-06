@@ -2,8 +2,15 @@
  * AdaptiveTabbar (desktop implementation) - macOS / Windows.
  *
  * Desktop has no native tab bar, so it uses the JS bottom-tab navigator purely
- * as a router shell and draws a vertical TabSidebar on the left. Shared by
+ * as a router shell and draws a vertical sidebar on the left. Shared by
  * AdaptiveTabbar.macos.tsx and AdaptiveTabbar.windows.tsx.
+ *
+ * The sidebar is the family's shared `TabSidebar` from `@sudobility/components-rn`
+ * (it draws the column, the icon-over-label items and the selected highlight in
+ * the design theme's colours and font). This app's `AdaptiveTab[]` maps onto the
+ * component's `TabSidebarItem[]`; the only coercion is the icon colour, which the
+ * shared component resolves from the theme (so it can be absent) while this app's
+ * `renderIcon` wants a concrete string.
  */
 
 import React from 'react';
@@ -12,8 +19,9 @@ import {
   createBottomTabNavigator,
   type BottomTabBarProps,
 } from '@react-navigation/bottom-tabs';
+import { TabSidebar, type TabSidebarItem } from '@sudobility/components-rn';
 
-import { TabSidebar } from './TabSidebar';
+import { useAppColors } from '@/hooks/useAppColors';
 import type { AdaptiveTabbarProps } from './types';
 
 const Tab = createBottomTabNavigator();
@@ -24,11 +32,19 @@ export function AdaptiveTabbar<ParamList extends object>({
   direction,
   linking,
 }: AdaptiveTabbarProps<ParamList>) {
+  const appColors = useAppColors();
+  const sidebarTabs: TabSidebarItem[] = tabs.map(tab => ({
+    name: tab.name,
+    label: tab.label,
+    renderIcon: ({ focused, color, size }) =>
+      tab.renderIcon({ focused, color: color ?? appColors.textMuted, size }),
+  }));
+
   const renderSidebar = (props: BottomTabBarProps) => {
     const activeName = props.state.routeNames[props.state.index];
     return (
       <TabSidebar
-        tabs={tabs}
+        tabs={sidebarTabs}
         activeName={activeName}
         onTabPress={name => props.navigation.navigate(name)}
       />
