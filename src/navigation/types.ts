@@ -11,13 +11,19 @@ import type {
 } from '@sudobility/raidr_agent_types';
 import type { ResultCopy } from '@/lib/results';
 import type { PermissionKind } from '@/lib/permissionKinds';
-import type { SettingsSectionId } from '@/screens/settings/sections';
 
 /** Result detail: the item, and why it was picked when it is the best one. */
-export type ResultDetailParams = { item: ResultItem; reason?: string; locationRequest?: boolean };
+export type ResultDetailParams = {
+  item: ResultItem;
+  reason?: string;
+  locationRequest?: boolean;
+};
 
 /** Where to get a merged result: its copies, one per listing. */
-export type ResultSourcesParams = { copies: ResultCopy[]; locationRequest?: boolean };
+export type ResultSourcesParams = {
+  copies: ResultCopy[];
+  locationRequest?: boolean;
+};
 
 /** Every result of a run, as a list (the "See all N results" step). */
 export type AllResultsParams = {
@@ -73,7 +79,6 @@ export type FindSiteScreenProps = NativeStackScreenProps<
 
 export type SettingsStackParamList = {
   Settings: undefined;
-  SettingsSection: { section: SettingsSectionId };
   ApiKeys: undefined;
 };
 
@@ -124,11 +129,6 @@ export type HistoryRunScreenProps = NativeStackScreenProps<
 export type SettingsScreenProps = NativeStackScreenProps<
   SettingsStackParamList,
   'Settings'
->;
-
-export type SettingsSectionScreenProps = NativeStackScreenProps<
-  SettingsStackParamList,
-  'SettingsSection'
 >;
 
 export type ApiKeysScreenProps = NativeStackScreenProps<

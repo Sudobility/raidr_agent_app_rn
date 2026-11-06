@@ -1,11 +1,13 @@
 /**
  * Settings, as master and detail ({@link SplitView}): Account, Appearance,
  * Credentials (the sites the user is signed in to) and App settings, then
- * API Keys. Wide, the chosen section shows beside the list; narrow (a
- * phone), each section is its own screen (`SettingsSection`).
+ * API Keys. Wide, the chosen section shows beside the list; narrow (a phone),
+ * choosing a section drills into it on the split view's own stack, with a back
+ * control to the list — the family's one master/detail, so `detailFocused`
+ * keeps the reader on the section across a rotation.
  *
  * API Keys is a screen of its own in either layout (its drag-ordered list
- * needs the whole screen), so it is a link, not a section.
+ * needs the whole screen), so it is a link, not a drilled-in section.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -33,6 +35,9 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   const agentMode = useSettingsStore(s => s.agentMode);
   const { effective } = useLlmKeys();
   const [chosen, setChosen] = useState<SettingsSectionId>('account');
+  // Whether the reader has drilled into a section, so a collapse after a
+  // rotation reopens on it rather than on the list.
+  const [detailFocused, setDetailFocused] = useState(false);
   const accountScrolls = useAccountScrollsItself();
 
   useEffect(() => {
@@ -54,27 +59,29 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
     { id: API_KEYS, label: t('settings.apiKeys'), value: agentModeLabel },
   ];
 
-  const choose = (id: string, split: boolean) => {
+  const choose = (id: string, split: boolean, showDetail: () => void) => {
     trackButtonClick(`settings_${id}`);
     if (id === API_KEYS) {
+      // API Keys is its own full screen in either layout (its drag-ordered list
+      // needs the whole window), so it is always a push, never a drilled-in pane.
       navigation.navigate('ApiKeys');
     } else if (isSettingsSection(id)) {
-      if (split) {
-        setChosen(id);
-      } else {
-        navigation.navigate('SettingsSection', { section: id });
-      }
+      setChosen(id);
+      // Beside the list this is inert; on a narrow screen it drills in.
+      if (!split) showDetail();
     }
   };
 
   return (
     <Screen title={t('settings.title')} hideBack layout='fill'>
       <SplitView
-        renderMaster={split => (
+        detailFocused={detailFocused}
+        onDetailFocusedChange={setDetailFocused}
+        renderMaster={(split, showDetail) => (
           <SplitMenuList
             entries={entries}
             selected={split ? chosen : null}
-            onSelect={id => choose(id, split)}
+            onSelect={id => choose(id, split, showDetail)}
           />
         )}
         detailTitle={t(SECTION_LABEL[chosen])}

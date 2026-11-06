@@ -3,7 +3,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import type { SettingsStackParamList } from './types';
 import SettingsScreen from '@/screens/SettingsScreen';
-import SettingsSectionScreen from '@/screens/SettingsSectionScreen';
 import ApiKeysScreen from '@/screens/ApiKeysScreen';
 
 const Stack = createNativeStackNavigator<SettingsStackParamList>();
@@ -21,7 +20,6 @@ export function SettingsStack() {
         component={SettingsScreen}
         options={{ title: t('settings.title') }}
       />
-      <Stack.Screen name='SettingsSection' component={SettingsSectionScreen} />
       <Stack.Screen
         name='ApiKeys'
         component={ApiKeysScreen}

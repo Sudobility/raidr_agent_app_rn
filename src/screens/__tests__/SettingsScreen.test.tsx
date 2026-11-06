@@ -84,8 +84,17 @@ jest.mock('@react-navigation/native', () => {
   return {
     ...actual,
     useTheme: () => actual.DefaultTheme,
-    // The screen's NavBar: a stack root, nothing to go back to.
-    useNavigation: () => ({ canGoBack: () => false, goBack: jest.fn() }),
+    useNavigation: () => {
+      // Inside `MasterDetailLayout`'s own container (the narrow drill-in) the
+      // real hook resolves, so `showDetail`/`showMaster` work. The screen's
+      // NavBar sits outside any container, where the real hook throws — there
+      // we stand in a stack root with nothing to pop.
+      try {
+        return actual.useNavigation();
+      } catch {
+        return { canGoBack: () => false, goBack: jest.fn() };
+      }
+    },
   };
 });
 
@@ -149,14 +158,16 @@ describe('SettingsScreen layout', () => {
     ]);
   });
 
-  it('pushes a section screen when narrow', () => {
+  it('drills into the section when narrow, on the split view’s own stack', () => {
     const tree = renderScreen();
     layOut(tree, 390);
+    // One column: the list, no detail beside it.
     expect(hasDetail(tree)).toBe(false);
     press(tree, 'credentials');
-    expect(navigate).toHaveBeenCalledWith('SettingsSection', {
-      section: 'credentials',
-    });
+    // The detail is pushed over the list by the layout itself — not a separate
+    // app route — so it is now on screen and nothing was navigated to.
+    expect(hasDetail(tree)).toBe(true);
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it('shows the chosen section beside the list when wide', () => {
