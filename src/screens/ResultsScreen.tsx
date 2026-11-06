@@ -44,6 +44,7 @@ import { useAgentClient } from '@/hooks/useAgentClient';
 import { useAuth } from '@/context/AuthContext';
 import { useRunFlowStore } from '@/stores/runFlowStore';
 import { getSiteToken } from '@/lib/secureStorage';
+import { getToolApiKey } from '@/lib/toolApiKeys';
 import type { RunCallbacks, RunHandle } from '@/lib/runTransport';
 import { startAgentRun } from '@/lib/agentFlow';
 import {
@@ -138,7 +139,8 @@ export default function ResultsScreen({ navigation }: ResultsScreenProps) {
       const tokens: Record<string, string | null> = {};
       for (const p of plans) {
         tokens[p.apiHost] =
-          p.login === 'none' ? null : await getSiteToken(p.apiHost);
+          p.login === 'none' ? null : p.credentialType === 'api_key'
+            ? await getToolApiKey(p.apiHost) : await getSiteToken(p.apiHost);
       }
       if (cancelledRef.current) {
         settle();
@@ -251,7 +253,8 @@ export default function ResultsScreen({ navigation }: ResultsScreenProps) {
       }
       let active = true;
       (async () => {
-        const token = await getSiteToken(site.apiHost);
+        const token = site.credentialType === 'api_key'
+          ? await getToolApiKey(site.apiHost) : await getSiteToken(site.apiHost);
         if (!active || !token) {
           return;
         }
@@ -269,7 +272,11 @@ export default function ResultsScreen({ navigation }: ResultsScreenProps) {
     (site: SitePlan) => {
       trackButtonClick('results_retry_sign_in');
       pendingRetryRef.current = site;
-      navigation.navigate('Login', { apiHost: site.apiHost });
+      if (site.credentialType === 'api_key') {
+        navigation.getParent()?.navigate('SettingsTab', { screen: 'ApiKeys' });
+      } else {
+        navigation.navigate('Login', { apiHost: site.apiHost });
+      }
     },
     [navigation]
   );
@@ -364,18 +371,18 @@ export default function ResultsScreen({ navigation }: ResultsScreenProps) {
                 {canRetry ? (
                   <View className='mt-2'>
                     <Text size='xs' color='muted' className='mb-2'>
-                      {t('results.signInNeeded')}
+                      {t(site.credentialType === 'api_key' ? 'results.apiKeyNeeded' : 'results.signInNeeded')}
                     </Text>
                     <View className='flex-row'>
                       <Button
                         variant='outline'
                         size='sm'
                         onPress={() => retryWithSignIn(site)}
-                        accessibilityLabel={t('results.signInRetry', {
+                        accessibilityLabel={t(site.credentialType === 'api_key' ? 'results.apiKeyRetry' : 'results.signInRetry', {
                           site: name,
                         })}
                       >
-                        {t('results.signInRetry', { site: name })}
+                        {t(site.credentialType === 'api_key' ? 'results.apiKeyRetry' : 'results.signInRetry', { site: name })}
                       </Button>
                     </View>
                   </View>

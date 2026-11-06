@@ -22,7 +22,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Text, Button, Badge, Spinner } from '@sudobility/components-rn';
+import { Text, Button, Badge, Spinner, Input } from '@sudobility/components-rn';
 import { useTranslation } from 'react-i18next';
 import { useSelectionStore } from '@sudobility/raidr_agent_lib';
 import type { PrepareResponse, SitePlan } from '@sudobility/raidr_agent_types';
@@ -33,6 +33,7 @@ import SiteIcon from '@/components/SiteIcon';
 import { useSiteBadges } from '@/hooks/useSiteBadges';
 import { useRunFlowStore } from '@/stores/runFlowStore';
 import { getSiteToken } from '@/lib/secureStorage';
+import { getToolApiKey, saveToolApiKey } from '@/lib/toolApiKeys';
 import { prepareRequest } from '@/lib/agentFlow';
 import { selectedInOrder } from '@/lib/sites';
 import {
@@ -93,6 +94,8 @@ export default function PrepareScreen({ navigation }: PrepareScreenProps) {
   const [draft, setDraft] = useState<FormDraft>({});
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [attempt, setAttempt] = useState(0);
+  const [keyDrafts, setKeyDrafts] = useState<Record<string, string>>({});
+  const [keyError, setKeyError] = useState<string | null>(null);
 
   useEffect(() => {
     trackScreenView('Prepare');
@@ -165,7 +168,9 @@ export default function PrepareScreen({ navigation }: PrepareScreenProps) {
         if (site.login === 'none') {
           continue;
         }
-        const token = await getSiteToken(site.apiHost);
+        const token = site.credentialType === 'api_key'
+          ? await getToolApiKey(site.apiHost)
+          : await getSiteToken(site.apiHost);
         if (!cancelled) {
           setAuthorized(site.apiHost, !!token);
         }
@@ -195,6 +200,17 @@ export default function PrepareScreen({ navigation }: PrepareScreenProps) {
     },
     [navigation]
   );
+
+  const saveKey = useCallback(async (site: SitePlan) => {
+    try {
+      await saveToolApiKey(site.apiHost, keyDrafts[site.apiHost] ?? '');
+      setKeyDrafts(current => ({ ...current, [site.apiHost]: '' }));
+      setAuthorized(site.apiHost, true);
+      setKeyError(null);
+    } catch (cause) {
+      setKeyError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }, [keyDrafts, setAuthorized]);
 
   const handleRun = useCallback(() => {
     if (!plan || !form || !ready) {
@@ -227,7 +243,9 @@ export default function PrepareScreen({ navigation }: PrepareScreenProps) {
                 {nameOf(site)}
               </Text>
               <Badge variant={required ? 'warning' : 'info'} size='sm'>
-                {required
+                {site.credentialType === 'api_key'
+                  ? t('prepare.apiKeyRequired')
+                  : required
                   ? t('prepare.signInRequired')
                   : t('prepare.signInOptional')}
               </Badge>
@@ -241,8 +259,10 @@ export default function PrepareScreen({ navigation }: PrepareScreenProps) {
           </View>
           {signedIn ? (
             <Text size='sm' color='success'>
-              {`✓ ${t('sites.signedIn')}`}
+              {`✓ ${site.credentialType === 'api_key' ? t('prepare.apiKeySaved') : t('sites.signedIn')}`}
             </Text>
+          ) : site.credentialType === 'api_key' ? (
+            <Text size='sm' color='warning'>{t('prepare.apiKeyNeeded')}</Text>
           ) : (
             <Button
               variant={required ? 'primary' : 'outline'}
@@ -254,6 +274,15 @@ export default function PrepareScreen({ navigation }: PrepareScreenProps) {
             </Button>
           )}
         </View>
+        {site.credentialType === 'api_key' && !signedIn ? (
+          <View className='mt-3'>
+            <Input value={keyDrafts[site.apiHost] ?? ''}
+              onChangeText={value => setKeyDrafts(current => ({ ...current, [site.apiHost]: value }))}
+              placeholder={t('prepare.apiKeyPlaceholder', { host: site.apiHost })} secureTextEntry autoCapitalize='none' autoCorrect={false} />
+            <View className='mt-2'><Button size='sm' onPress={() => { saveKey(site); }}>{t('prepare.saveApiKey')}</Button></View>
+            {keyError ? <Text size='sm' color='danger'>{keyError}</Text> : null}
+          </View>
+        ) : null}
       </View>
     );
   };

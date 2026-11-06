@@ -251,7 +251,7 @@ export function sitesToRetryWithSignIn(
   calls: CallData[]
 ): SitePlan[] {
   return plans.filter(plan => {
-    if (plan.login !== 'fallback') {
+    if (plan.login !== 'fallback' && plan.credentialType !== 'api_key') {
       return false;
     }
     const finished = calls.filter(

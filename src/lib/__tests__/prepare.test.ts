@@ -246,6 +246,10 @@ describe('buildRunSites', () => {
 });
 
 describe('sitesToRetryWithSignIn', () => {
+  it('offers API-key tools after an authentication failure', () => {
+    const keyed = plan({ apiHost: 'places.googleapis.com', login: 'required', credentialType: 'api_key' });
+    expect(sitesToRetryWithSignIn([keyed], [call({ apiHost: keyed.apiHost, httpStatus: 403 })])).toEqual([keyed]);
+  });
   const plans = [
     plan({ apiHost: 'api.a', login: 'fallback' }),
     plan({ apiHost: 'api.b', login: 'none' }),

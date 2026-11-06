@@ -51,14 +51,17 @@ import {
 } from '@sudobility/components-rn';
 import { Bars3Icon } from 'react-native-heroicons/outline';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAppColors } from '@/hooks/useAppColors';
 import { useLlmKeys } from '@/hooks/useLlmKeys';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useRunFlowStore } from '@/stores/runFlowStore';
 import {
   LLM_PROVIDER_INFO,
   type LocalLlmProvider,
 } from '@/config/llmProviders';
 import { canUseLocal, type AgentMode } from '@/lib/agentMode';
+import { deleteToolApiKey, listToolApiKeyHosts, normalizeApiHost, saveToolApiKey } from '@/lib/toolApiKeys';
 import { clampDrag, indexFromDrag, moveItem, shiftForRow } from '@/lib/reorder';
 import { trackScreenView, trackButtonClick } from '@/analytics';
 import type { ApiKeysScreenProps } from '@/navigation/types';
@@ -308,6 +311,7 @@ export default function ApiKeysScreen(_props: ApiKeysScreenProps) {
   const agentMode = useSettingsStore(s => s.agentMode);
   const setAgentMode = useSettingsStore(s => s.setAgentMode);
   const providerOrder = useSettingsStore(s => s.providerOrder);
+  const plan = useRunFlowStore(s => s.plan);
   const setProviderOrder = useSettingsStore(s => s.setProviderOrder);
   const { configured, masks, loading, save, remove } = useLlmKeys();
   // While the Keychain is still being read, keep a saved Local choice usable.
@@ -316,10 +320,55 @@ export default function ApiKeysScreen(_props: ApiKeysScreenProps) {
 
   const [expanded, setExpanded] = useState<LocalLlmProvider | null>(null);
   const [dragging, setDragging] = useState<LocalLlmProvider | null>(null);
+  const [toolHosts, setToolHosts] = useState<string[]>([]);
+  const [toolHost, setToolHost] = useState('');
+  const [toolKey, setToolKey] = useState('');
+  const [toolError, setToolError] = useState('');
+  const [savingToolKey, setSavingToolKey] = useState(false);
+  const neededToolHosts = useMemo(() =>
+    [...new Set((plan?.sites ?? []).filter(site => site.credentialType === 'api_key').map(site => site.apiHost))]
+      .filter(host => !toolHosts.includes(host)), [plan, toolHosts]);
 
   useEffect(() => {
     trackScreenView('ApiKeys');
   }, []);
+
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    listToolApiKeyHosts().then(hosts => {
+      if (active && hosts.length > 0) setToolHosts(hosts);
+    });
+    return () => { active = false; };
+  }, []));
+
+  const saveToolKey = useCallback(async () => {
+    const host = normalizeApiHost(toolHost);
+    if (!host || !toolKey.trim()) {
+      setToolError(t('apiKeys.toolMissing'));
+      return;
+    }
+    setSavingToolKey(true);
+    setToolError('');
+    try {
+      await saveToolApiKey(host, toolKey);
+      setToolHosts(await listToolApiKeyHosts());
+      setToolHost('');
+      setToolKey('');
+    } catch (error) {
+      setToolError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSavingToolKey(false);
+    }
+  }, [toolHost, toolKey, t]);
+
+  const removeToolKey = useCallback((host: string) => {
+    Alert.alert(t('apiKeys.toolRemoveTitle'), t('apiKeys.toolRemoveMessage', { host }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('apiKeys.remove'), style: 'destructive', onPress: () => {
+        deleteToolApiKey(host).then(async () => setToolHosts(await listToolApiKeyHosts()));
+      } },
+    ]);
+  }, [t]);
 
   // ---- mode ---------------------------------------------------------------
 
@@ -566,6 +615,32 @@ export default function ApiKeysScreen(_props: ApiKeysScreenProps) {
         <Text size='sm' color='muted' className='mt-1 px-1'>
           {t('apiKeys.storageNote')}
         </Text>
+      </View>
+      <View className='mb-7'>
+        <SectionTitle>{t('apiKeys.toolSection')}</SectionTitle>
+        <Text size='sm' color='muted' className='mb-3 px-1'>
+          {t('apiKeys.toolDescription')}
+        </Text>
+        {neededToolHosts.map(host => (
+          <Button key={host} variant='outline' size='sm' onPress={() => setToolHost(host)}>
+            {host}
+          </Button>
+        ))}
+        {toolHosts.map(host => (
+          <View key={host} className='flex-row items-center justify-between rounded-lg bg-card p-3 mb-2'>
+            <View className='flex-1'>
+              <Text size='base' weight='semibold'>{host}</Text>
+              <Text size='sm' color='muted'>{t('apiKeys.keySaved')}</Text>
+            </View>
+            <Button variant='outline' size='sm' onPress={() => removeToolKey(host)}>{t('apiKeys.remove')}</Button>
+          </View>
+        ))}
+        <Input value={toolHost} onChangeText={setToolHost} placeholder={t('apiKeys.toolHostPlaceholder')} autoCapitalize='none' autoCorrect={false} testID='tool-api-key-host' />
+        <View className='mt-2'>
+          <Input value={toolKey} onChangeText={setToolKey} placeholder={t('apiKeys.toolKeyPlaceholder')} secureTextEntry autoCapitalize='none' autoCorrect={false} testID='tool-api-key-value' />
+        </View>
+        {toolError ? <Text size='sm' color='danger' className='mt-2'>{toolError}</Text> : null}
+        <View className='mt-3'><Button variant='primary' disabled={savingToolKey} onPress={saveToolKey} testID='tool-api-key-save'>{t('apiKeys.toolSave')}</Button></View>
       </View>
     </Screen>
   );

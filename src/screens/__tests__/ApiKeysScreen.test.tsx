@@ -39,6 +39,7 @@ jest.mock('react-i18next', () => ({
 }));
 jest.mock('@react-navigation/native', () => ({
   useTheme: () => ({ dark: false }),
+  useFocusEffect: (effect: () => void) => require('react').useEffect(effect, [effect]),
   // The screen's NavBar: a stack root, nothing to go back to.
   useNavigation: () => ({ canGoBack: () => false, goBack: jest.fn() }),
 }));
