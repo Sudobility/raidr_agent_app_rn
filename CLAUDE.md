@@ -1,479 +1,160 @@
 # raidr agent (raidr_agent_app_rn)
 
-> **Git policy — never auto-commit or auto-push.** Leave work in the working tree. Run git commit, git push, gh pr create or a release script only when the user explicitly asks in that turn.
+> **Git policy — never auto-commit or auto-push.** Leave work in the working
+> tree. Run git commit, git push, gh pr create or a release script only when the
+> user explicitly asks in that turn.
 
 Native agent app. The user types a request; the app turns it into an intent,
-picks the sites that can fulfil it, signs the user in to those sites through a
-web view (the session token stays in the Keychain / Keystore, never in JS
-storage or on our server), and streams the results back through the Vercel AI
-SDK.
+picks sites that can fulfil it, signs the user in to those sites through a web
+view (the session token stays in the Keychain / Keystore, never in JS storage
+or on a server), prepares a form, runs the sites and streams results back
+through the Vercel AI SDK. Runs go to the cloud (`POST /runs`) or, with the
+user's own LLM keys, run locally on the device.
 
-Platforms: **iOS, iPadOS, Android phone and tablet, macOS, Windows**.
-
-**Package**: `raidr_agent_app_rn` (private). Display name **raidr agent**,
-registry/component name **`RaidrAgent`**, bundle/application ID
-**`com.sudobility.raidr.agent`** everywhere.
-
-> **Status:** scaffolded 2026-10-02 from `mogulgame_app_rn`. Tabs: **Ask**
-> (Ask → Sites → Login web view → Results → ResultDetail), **History** and
-> **Settings** (master/detail: Account, Appearance, Credentials, App
-> settings; → **API Keys**). Runs go to the cloud (`POST /runs`) or, in
-> local mode, run on the device (see "Local agent mode").
+Platforms: **iOS, iPadOS, Android (phone + tablet), macOS, Windows**.
+Private package. Display name **raidr agent**, component/registry name
+**`RaidrAgent`**, bundle/application ID **`com.sudobility.raidr.agent`** everywhere.
 
 ## Tech stack
 
-- Bare React Native 0.81 + Expo SDK 54 modules (**not** Expo-managed, no Expo Router)
-- `react-native-macos` / `react-native-windows` 0.81 for the desktops
+- **Bare React Native 0.83 — Expo has been removed** (not Expo-managed, no
+  Expo Router, no `expo` dependency). `react-native-macos` / `-windows` 0.83
+  for the desktops.
 - React Navigation 7 (bottom tabs on phone/tablet; custom sidebar on desktop)
 - Zustand 5, TanStack Query 5, NativeWind 4 + Tailwind 3, i18next
 - Auth: `@sudobility/auth_lib` (Firebase JS SDK on every platform; Google
-  Sign-In via `auth_lib/signin`)
-- For the coming feature: `react-native-webview`, `@react-native-cookies/cookies`,
-  `react-native-keychain`, `ai` 7, `@ai-sdk/react` 4, `zod` 4
-- Jest (not Vitest)
-- **Bun only.** Never npm/yarn/pnpm.
+  Sign-In via `auth_lib/signin`). No Apple sign-in (`APPLE_SIGN_IN_OFFERED` false).
+- Agent feature: `react-native-webview`, `@react-native-cookies/cookies`,
+  `react-native-keychain`, `ai` 7, `@ai-sdk/react` 4, `zod` 4, `viem`, `@scure/bip39`
+- Jest (**not** Vitest).
+- **Bun only.** Never npm/yarn/pnpm. `@sudobility/*` installs from GitHub
+  Packages (`.npmrc`) and needs a `read:packages` token in `~/.npmrc`.
 
 ## Commands
 
 ```bash
 bun install
 bun run start          # Metro on port 8094
-bun run ios            # react-native run-ios     (scheme RaidrAgent)
-bun run android        # react-native run-android (com.sudobility.raidr.agent)
-bun run macos          # react-native run-macos   (scheme RaidrAgent-macOS)
+bun run ios            # run-ios     (scheme RaidrAgent)
+bun run android        # run-android (com.sudobility.raidr.agent)
+bun run macos          # run-macos   (scheme RaidrAgent-macOS)
 bun run windows        # run-windows (windows/RaidrAgent.sln)
 bun run typecheck      # tsc --noEmit
 bun run lint           # eslint .
 bun run test:unit      # jest --passWithNoTests   (what CI runs)
 bun run verify         # typecheck + lint + test:unit
 cd ios && pod install  # after adding a native dependency (same for macos/)
-
-# JS bundle smoke test (no Xcode needed)
-bunx react-native bundle --platform ios --dev false --entry-file index.ts \
-  --bundle-output /tmp/raidr_agent_ios.jsbundle
 ```
 
-Every `start`/`ios`/`android`/`macos`/`windows` script has a `pre*` hook that
-runs `scripts/generate-theme-css.js` and clears the Metro cache.
-
-CI: `.github/workflows/ci-cd.yml` calls
-`johnqh/workflows/.github/workflows/unified-cicd.yml@main` with
-`skip-npm-publish: true`. It runs `bun install`, `bun run typecheck`,
-`bun run lint` and `bun run test:unit`; there is no `build` script, so the build
-step is skipped.
+Each `start`/`ios`/`android`/`macos`/`windows` script has a `pre*` hook that
+runs `scripts/generate-theme-css.js` and clears the Metro cache. There is **no
+`build` script**, so CI (`.github/workflows/ci-cd.yml` →
+`johnqh/workflows/.../unified-cicd.yml`, `skip-npm-publish: true`) skips the
+build step and never publishes.
 
 ## Native project names
 
 | Platform | Location | Names |
 | --- | --- | --- |
-| iOS | `ios/RaidrAgent.xcworkspace` | scheme + target `RaidrAgent`, `ios/RaidrAgent/` sources |
-| macOS | `macos/RaidrAgent.xcworkspace` | target + scheme `RaidrAgent-macOS` (what `run-macos` infers from the workspace name), `macos/RaidrAgent-macOS/` |
-| Android | `android/app` | `namespace`/`applicationId` `com.sudobility.raidr.agent`, Kotlin in `java/com/sudobility/raidr/agent/` |
-| Windows | `windows/RaidrAgent.sln` | `RaidrAgent.vcxproj`, `RaidrAgent.Package` (identity `com.sudobility.raidr.agent`) |
+| iOS | `ios/RaidrAgent.xcworkspace` | scheme + target `RaidrAgent` |
+| macOS | `macos/RaidrAgent.xcworkspace` | target + scheme `RaidrAgent-macOS` |
+| Android | `android/app` | `applicationId` `com.sudobility.raidr.agent`, Kotlin in `java/com/sudobility/raidr/agent/` |
+| Windows | `windows/RaidrAgent.sln` | `RaidrAgent.vcxproj`, identity `com.sudobility.raidr.agent` |
 
-The JS component is registered as `RaidrAgent` (`app.json` `name`), and each
-native host asks for that name: `SceneDelegate.swift`, `AppDelegate.mm`
-(macOS), `MainActivity.kt`, `RaidrAgent.cpp`. Rename all five together.
+The JS component registers as `RaidrAgent` (`app.json` `name`); each native host
+(`SceneDelegate.swift`, macOS `AppDelegate.mm`, `MainActivity.kt`,
+`RaidrAgent.cpp`) asks for that name. Rename all together.
 
-## Project structure
+## Architecture
 
-```
-index.ts                     # entry: AI SDK polyfills first, then AppRegistry
-App.tsx                      # provider stack + splash gates (localStorage polyfill first)
-src/
-  analytics.ts
-  components/                # SignInModal, SignInPage, ResultCard, ThemeVarsProvider
-  config/                    # constants, env (only process.env reader), theme, designTheme
-  context/                   # AuthContext (one file, every platform), ApiContext
-  di/                        # initializeServices{,.ios,.android}.ts
-  hooks/                     # useSignInForm, useAppColors, useTabBarHeight{,.ios,.android}
-  i18n/
-  navigation/                # AppNavigator, DesktopSidebar, AskStack, SettingsStack, types
-  polyfills/                 # localStorage.ts, aiSdk.ts (+ tests)
-  screens/                   # AskScreen, SettingsScreen, SplashScreen
-  stores/settingsStore.ts
-app_store/                   # store metadata + wrappers around ~/projects/workflows/app_store
-```
+- **Entry order matters.** `index.ts` imports `./src/polyfills/aiSdk` **first**
+  (before anything imports `ai`), then registers the app. `App.tsx` imports
+  `@/polyfills/localStorage` **first** (before any zustand store).
+- **Agent flow** (`src/navigation/AskStack.tsx`): Ask → (Permission) → Sites →
+  Prepare → Login web view → Results → Result sources / Result detail. Transient
+  state in `src/stores/runFlowStore.ts`. `src/lib/agentFlow.ts` picks cloud vs
+  local per call and is the only place the cloud path calls `RaidrAgentClient`.
+  Per-step pure rules live in `src/lib/{sites,prepare,results,webAuth}.ts`.
+- **Local agent mode** (`src/lib/localAgent.ts`): runs the `raidr_agent_lib`
+  runner on-device using the user's own OpenAI/Anthropic/DeepSeek/OpenRouter
+  keys (Settings → API Keys). The user's LLM key and site tokens stay on-device;
+  step inputs still pass through `raidr_agent_api` + ShapeShyft. Parse provider
+  replies with `parseProviderResponse` from
+  `@sudobility/shapeshyft_engine/core` — never the engine root.
+- **Secrets** live only in the Keychain/Keystore, never JS storage or a server:
+  site session tokens (`siteSessions.ts`), LLM keys (`llmKeys.ts`), the agent
+  email BIP-39 seed (`agentWalletStore.ts`), per-site passwords
+  (`agentCredentialStore.ts`). The Keychain can't enumerate, so AsyncStorage
+  "index" stores hold listable directories (no secrets) in parallel.
+- **Navigation/layout:** iOS-style everywhere; each step is its own native-stack
+  screen. Native headers off (`headerShown: false` — they don't render on
+  macOS/Windows); every screen renders `Screen`
+  (`src/components/layout/Screen.tsx`) with its own `NavBar`. `SplitView` gives
+  master/detail at ≥ 700pt. `TileGrid` lays out list content (1 col < 700pt,
+  else 2–4). A tile's root uses `grow`, never `flex-1` (basis 0 collapses it).
+- **App sign-in** uses the shared `LoginView`/`LoginModal`/`LoginPage` from
+  `@sudobility/components-rn` / `building_blocks_rn` via `useSignInForm()`,
+  never a hand-built form. A screen whose job is signing in → `SignInPage`;
+  sign-in mid-flow → `SignInModal`. `src/screens/LoginScreen.tsx` is **not**
+  this — it is the agent's third-party *site* sign-in web view.
 
-Platform suffixes: the **unsuffixed** `.ts` is the desktop implementation;
-`.ios.ts`/`.android.ts` are the mobile variants. There are no `.macos.*` or
-`.windows.*` files.
+## AI SDK on React Native (no Expo)
 
-## AI SDK on React Native
+`src/polyfills/aiSdk.ts` installs, only where missing: streams
+(`web-streams-polyfill`), `TextDecoder` (`text-encoding`),
+`TextEncoderStream`/`TextDecoderStream` (`@stardazed/streams-text-encoding`),
+`structuredClone` (`@ungap/structured-clone`), `Symbol.asyncIterator`. Hermes
+already has `TextEncoder`. These used to come from Expo's "winter" runtime;
+Expo removal replaced them with the plain-JS packages above.
 
-`src/polyfills/aiSdk.ts` (imported first in `index.ts`) installs, only where
-missing: `ReadableStream`/`TransformStream`/`WritableStream`
-(`web-streams-polyfill`), `TextDecoder`, `TextEncoderStream`/`TextDecoderStream`
-(Expo SDK 54's `expo/src/winter` implementations), `structuredClone`
-(`@ungap/structured-clone`), and `Symbol.asyncIterator`. Hermes already has
-`TextEncoder`. Expo installs these itself only under `expo/metro-config`, which
-this app does not use.
+**Streaming fetch** (`src/lib/runTransport.ts`): RN's built-in `fetch` can't
+expose a streaming response body, so iOS/Android POST with
+`react-native-fetch-api`'s streaming `fetch` (replaced `expo/fetch`) and read
+the SSE `data-*` chunks incrementally. macOS/Windows keep the built-in buffering
+`fetch` and parse the completed stream.
 
-Still to solve when the feature lands: RN's built-in `fetch` cannot stream a
-response body. On iOS/Android pass `expo/fetch` to the chat transport
-(`new DefaultChatTransport({ api, fetch: expoFetch as unknown as typeof fetch })`);
-macOS and Windows have no `expo/fetch` and need their own streaming fetch.
+**Locked version trio:** `react` 19.3.1, `react-native` 0.83.10 and
+`react-native-macos` 0.83.0 (with `react-test-renderer` 19.3.1) must move
+together — each renderer asserts one exact React version at load ("Incompatible
+React versions" hangs macOS at "Loading… 100%" otherwise). Check
+`Libraries/Renderer/implementations/*-dev.js` in both RN and RN-macos.
 
-**`react` 19.1.4, `react-native` 0.81.6 and `react-native-macos` 0.81.9 are a
-locked trio** (with `react-test-renderer` 19.1.4). Each ships a renderer built
-for one exact React version and asserts it at load: react-native-macos 0.81.2's
-renderer was 19.1.4 while the app had 19.1.0, so macOS hung on "Loading…
-100%" with "Incompatible React versions" in the JS console. Change all of them
-together, and check `Libraries/Renderer/implementations/*-dev.js` in both
-`react-native` and `react-native-macos` for the version they assert.
+## Conventions
 
-## Navigation and layout
-
-iOS-style on every platform. Each step is its own screen in a native stack
-(`AskStack`, `HistoryStack`, `SettingsStack`; bottom tabs on mobile, the
-sidebar on desktop). Native headers are **off** (`headerShown: false`): they do
-not render on macOS/Windows. Every screen renders `Screen`
-(`src/components/layout/Screen.tsx`), whose `NavBar` shows a back chevron when
-the stack can go back, the centred title, and an optional `headerRight`.
-
-- `layout='list'` for list content, laid out by `TileGrid`: one column below
-  700pt (iOS regular width, measured on the grid itself), else 2–4 tile
-  columns (`columnsFor`). Sites, Results/All results/History cards, progress,
-  Result sources.
-- `layout='center'` (default) for everything else: a 640pt column in the
-  middle; `valign='center'` also centres it vertically (Ask, permission
-  screens), `top` (default) starts under the bar (Settings, forms, details).
-- `layout='fill'` for web views/maps. `footer` holds a fixed Next/Run bar.
-- A tile's root grows (`grow`), never `flex-1`: in a grid cell whose height
-  comes from its content, `flex: 1` (basis 0) collapses it and the content
-  spills over the next row (the Results progress tiles did).
-- **react-native-svg ≥ 15.15.5 on macOS.** Older versions draw nothing there
-  under Fabric (the base view asks AppKit for `updateLayer`; RNSVG draws in
-  `drawRect:`), so every SVG — the sidebar's tab icons, Google's logo on the
-  sign-in form — was blank. 15.15.5 fixed it upstream (`wantsUpdateLayer`
-  returns NO in `RNSVGSvgView`); music_app_rn and sudojo_app_rn still patch
-  15.12.1 for the same thing. Do not go below 15.15.5.
-
-**Permission screens** (`PermissionScreen`, `src/lib/permissions.ts`): their
-own screen with text and the call to action in the middle, never left in the
-back stack. Go through `usePermissionGate().goWith(kind, next)`: the first time
-it opens `Permission` with the route to continue to, which on success
-*replaces* itself with it (screen 1 → permission → screen 2; back on screen 2
-returns to screen 1); "Not now" goes back. Once allowed
-(`settingsStore.grantedPermissions`) the permission is used in place and the
-next screen opens directly; if it stopped working the screen shows again. Add
-a kind in `src/lib/permissionKinds.ts` (pure, persisted), its `allow` in
-`PERMISSIONS`, and strings under `permission.<kind>`.
-
-## Agent flow
-
-Ask → (Permission) → Sites → Prepare → Results → (All results) → Result
-sources / Result detail (`src/navigation/AskStack.tsx`); transient
-state in `src/stores/runFlowStore.ts` (request, intent, candidates, location,
-`plan`, `inputs`). `src/lib/agentFlow.ts` picks cloud or local per call and is
-the only place the cloud flow calls `RaidrAgentClient`.
-
-- **Ask**: `understandRequest` with the device context (`src/lib/deviceContext.ts`:
-  country via `react-native-localize`, locale, time zone, `now` with offset).
-  Returns the six-W `AgentIntent` (incl. `selection`) and ranked candidates (with `reason`).
-- **Sites**: a toggle per site, every one on to start (up to 8, the run's
-  cap), whatever the selection mode; Next needs 1–8 on. `single`/`best` still
-  end in one result, picked from every site's. Rules in `src/lib/sites.ts`. Rows show the site's **domain**
-  (`siteDomain`: first origin without `www.`, never the catalog's "… API" title)
-  and its icon (`CandidateSite.iconUrl`, `SiteIcon` falls back to the first
-  letter). Every screen that names a site (Prepare, Results progress, History,
-  result cards) does the same through `useSiteBadges(apiHosts)`: seeded from the
-  candidates, else `GET /sites/:apiHost/icon` (`{ domain, iconUrl }`), cached a day.
-- **Prepare** (`PrepareScreen`): per-site plans (tools, `login`
-  required/fallback/none, `unsupported`) and one merged `FormField[]` form
-  (`src/components/PreparedFormField.tsx`). Run needs a valid form and every
-  `required` site signed in. Rules (validation/coercion, readiness, run sites,
-  401/403 retry) in `src/lib/prepare.ts`. Tokens go with `required` and
-  `fallback` sites when stored, never with `none` sites.
-- **Results**: `single`/`best` show the `data-best` pick in full with its reason
-  and "See all N results"; `all` lists (map toggle for location intents). In an
-  `all` run, `data-groups` (the `dedupe` step, after every site finished) merges
-  the same thing from several sites into one row (`displayItems` in
-  `src/lib/results.ts`); each card shows its sites' icons lower-left ("On N
-  sites" when merged). A merged row opens **Result sources**
-  (`ResultSourcesScreen`): one row per copy with icon, domain and what sets it
-  apart (the step's note, else a price-like field) → that copy's detail. A
-  one-site sign-in retry drops the groups. A
-  `fallback` site whose calls all failed 401/403 offers "Sign in to <site> and
-  retry" (re-runs that site only). Detail's "Open on <site>" opens `pageUrl`
-  with `Linking.openURL`; hidden when `pageUrl` is ''. History renders runs the
-  same way from `RunDetail.best`. Rules in `src/lib/results.ts`.
-- **Login web view**: `window.open` popups open in a second `WebView` over the
-  first (same cookie store, same capture script, a bridge shimming
-  `window.opener.postMessage` / `window.close()`); Google sign-in pages switch
-  that web view to a standard browser user agent by cancelling the load and
-  remounting with a new `key` (sticky afterwards). Windows uses WebView2 for
-  popups and skips the UA switch (no `userAgent` prop; Edge UA already passes).
-  Pure helpers in `src/lib/webAuth.ts`.
-
-## Local agent mode
-
-Settings → API Keys (`ApiKeysScreen`) holds the user's own OpenAI / Anthropic /
-DeepSeek / OpenRouter keys (Keychain service `raidr-agent-llm:<provider>`,
-`src/lib/llmKeys.ts`), a drag-ordered provider list and a Cloud / Local switch
-(`settingsStore.agentMode`, default cloud; local needs ≥1 key and falls back to
-cloud when the last key is removed). Pure rules: `src/lib/agentMode.ts`,
-`src/lib/reorder.ts`.
-
-`src/lib/localAgent.ts` runs local mode: `understandLocally`
-(`understandIntent` → `POST /candidates` → `rankSites`), `prepareLocally`
-(`prepareSites` with site context from `GET /sites/:apiHost/context`) and
-`startLocalRun` (`runSites` with tools/inputs, forwarding `data-best`). For each
-model step (understand, rank-sites, prepare, plan, extract, pick-best) it gets the provider request from raidr_agent_api `POST /llm/payload`
-(which proxies ShapeShyft `/prompt` with `llm_provider`), adds the user's key per
-`request.auth`, calls the provider directly and parses the reply with
-`parseProviderResponse` from `@sudobility/shapeshyft_engine/core` (the RN-safe
-subpath — never import the engine root). Providers are tried in the user's
-order; a failure falls through to the next. The run loop is
-`raidr_agent_lib/runner` (the same one the server runs); site calls go straight
-to the site (`DirectSiteConnector`), manifests come from the site context, and the finished run is uploaded to
-`POST /runs/import` for History. The user's LLM key and site tokens stay on the
-device; the step inputs (including site response excerpts) do pass through
-raidr_agent_api and ShapeShyft to build each payload.
-
-`babel.config.js` includes `@babel/plugin-transform-export-namespace-from`
-because zod 4 (pulled in by the runner) uses `export * as`.
-
-## Settings
-
-`SettingsScreen` is master/detail (`src/components/layout/SplitView.tsx`):
-at ≥ 700pt (`REGULAR_WIDTH`, measured on the view) the section list is 300pt
-on the left and the chosen section shows beside it; narrower, each section is
-pushed as `SettingsSection` (`SettingsSectionScreen`). Sections are
-`src/screens/settings/` (ids and labels in `sections.ts`, a `Record` so a new
-one needs a label): **Account** (the app account; signed out, it is
-`SignInPage`), **Appearance** (language and theme `Select`s and the version,
-copied from music_app_rn), **Credentials**, **App settings** (empty for now).
-API Keys stays its own screen, linked from the list.
-
-**Credentials** lists the sites signed in to on this device. The Keychain
-cannot enumerate its entries, so `LoginScreen` saves through
-`saveSiteSession` (`src/lib/siteSessions.ts`), which also records
-`{ apiHost, loginUrl, signedInAt }` (no token) in `credentialsStore`
-(AsyncStorage `raidr-agent-credentials`). Tokens saved before 2026-10-09 are
-not listed. Sign out (one, or all) deletes the Keychain token, the entry and
-the selection store's `authorized` mark, and clears the web view's cookies,
-since the shared cookie store would otherwise sign straight back in: iOS
-`clearByName` per cookie of `loginUrl` (WebKit store), Android expired
-overwrites + `flush`, all: `clearAll`. macOS/Windows have no cookie manager,
-so there only the token goes.
-
-**Add Credential** (`AddCredentialModal`): an RN `Modal` (page sheet) with
-its own native stack in a `NavigationIndependentTree`: `FindSite` (search
-box; `useSiteSearch` debounces 300 ms and calls `GET /sites/search` from 2
-characters) → the agent flow's own `LoginScreen` with `purpose: 'credential'`
-(stores the sign-in, does not select the site for a run), so web view,
-popups and the Google user-agent switch are one implementation. The modal
-gives its content a fresh `SafeAreaProvider` and a `BottomTabBarHeightContext`
-of 0 (the window's insets and the tab bar's height reach through the portal
-but are wrong there), and closes on Cancel, back, or once a sign-in made
-while it was open lands in `credentialsStore`. `LoginScreenProps` is
-structural (`route.params`, `navigation.goBack`) because two stacks host it.
-Needs raidr_agent_types/client with `SiteSearchHit` / `searchSites` (local
-`dist` copies in `node_modules` until they are published).
-
-## Agent Email (Settings → Agent Email)
-
-A Signic (`@sudobility/signic_sdk`) email address for the agent to use when a
-site asks for one: the mail those sites send (sign-in links, verification
-codes) lands in an inbox read on the device. The user signs up and confirms;
-this app does not create site accounts or confirm verifications on its own.
-
-- **Key** (`src/lib/agentWallet.ts`): a standard Ethereum key as a BIP-39
-  12-word seed phrase — `viem/accounts` (`generateMnemonic`,
-  `mnemonicToAccount`, path `m/44'/60'/0'/0/0`) with `@scure/bip39`'s
-  `validateMnemonic`. `react-native-get-random-values` is imported in
-  `index.ts` before anything uses `crypto.getRandomValues` (the bundle will
-  not generate a key without it). The email address is `<0xaddr>@<domain>`.
-- **Storage**: the seed phrase lives only in the Keychain / Keystore
-  (`agentWalletStore.ts`, service `raidr-agent-email-wallet`, in-memory
-  fallback like `secureStorage.ts`), never in JS storage or on a server. The
-  non-secret address + "use automatically" flag are in `agentEmailStore`
-  (AsyncStorage `raidr-agent-email`); the flag is off without an address.
-- **Mail** (`agentEmailService.ts`): builds a `SignicClient` whose
-  `signMessage` derives the wallet from the stored phrase, SIWE-connects once
-  and caches the session (`resetAgentEmailSession` on create/restore/remove;
-  a failed connect is not cached). `listAgentEmails` / `getAgentEmail` /
-  `markAgentEmailRead` / `sendAgentEmail`. The factory is injectable for
-  tests (no viem, no network). The inbox UI is not built yet — `useAgentInbox`
-  is the React Query hook it will read.
-- **Config** (`src/config/agentEmail.ts`): `VITE_SIGNIC_{INDEXER,WILDDUCK}_URL`
-  and `VITE_SIGNIC_EMAIL_DOMAIN`, defaulting to the public signic.email
-  endpoints (added to `env.ts` and `babel.config.js` `INLINED_ENV`).
-- **Section** (`AgentEmailSection`): no email → instructions + Create /
-  Restore; Create shows the new phrase in `SeedPhraseModal` (`backup` mode,
-  "I've saved it") before use; Restore (`RestoreEmailModal`) validates a
-  phrase before enabling the button. With an email → the address, the "use
-  automatically" `Switch`, Show Seed Phrases (`reveal` mode) and Remove
-  (deletes the Keychain phrase, confirmed first).
-- **Autofill in sign-up** (`LoginScreen`): when an agent email exists and its
-  "use automatically" toggle is on, the login web view shows **Use Agent
-  Email** on the site's own form (hidden while an OAuth popup is open). It
-  fills the agent address and a generated password and never submits — the
-  user presses the site's button. `agentCredentials.generatePassword` (crypto
-  getRandomValues, one of each category) and `agentCredentialStore` (Keychain
-  `raidr-agent-cred:<apiHost>`, one login per site, reused on return,
-  regenerated if the agent email changed — the "domain credentials, local and
-  encrypted"). `autofill.ts` (`buildAutofillScript`) sets field values via the
-  native setter + input/change events so a framework form registers them, and
-  posts an `AutofillResult` back; both values go in with `JSON.stringify` so a
-  password cannot break out of the script. It targets the first visible
-  email-like field and up to two password fields (password + confirm).
-## Passwords (Settings → Passwords)
-
-A password manager over the same per-site store the autofill writes, so an
-agent-email login and one the user typed sit in one list; the email may be the
-agent's Signic address or anything the user enters — it makes no difference.
-
-- **Store**: the password lives only in the Keychain (`agentCredentialStore`,
-  per `apiHost`); `passwordIndexStore` (AsyncStorage `raidr-agent-passwords`)
-  is the listable directory — `{ apiHost, domain, email, source, updatedAt }`,
-  no password — because the Keychain cannot enumerate. `passwordVault.ts`
-  keeps the two in step: `getOrCreateAgentLogin` (called by the sign-up
-  autofill, `source: 'agent'`), `saveManualLogin` (`source: 'manual'`, keyed
-  by `normalizeDomain`), `updateLogin`, `revealPassword` (reads the Keychain
-  on demand), `removeLogin`.
-- **Section** (`PasswordsSection`): a card per login (icon, domain, email,
-  the password hidden until Show reads it from the Keychain), with Edit and
-  Remove, and **Add Password** → `PasswordEntryModal` (website, email,
-  password with Show and Generate). Editing keeps the key and source; the
-  domain is fixed when editing. Removing deletes both the Keychain password
-  and the directory row.
-- **Copy** (`src/components/CopyButton.tsx`, `src/lib/clipboard.ts`):
-  `@react-native-clipboard/clipboard` (iOS/Android/macOS/Windows), required
-  lazily and guarded so an unlinked build or a test fails to `false` rather
-  than throwing. `CopyButton` takes a `text` or an on-demand `onCopy` (used to
-  read a password from the Keychain only when copied) and shows "Copied" for
-  ~1.5s. Used on the password rows (password + email), the password modal, the
-  agent email address, and the seed-phrase modal. `sensitive` copies via
-  `copySensitive`, which auto-clears the clipboard after `SENSITIVE_CLEAR_MS`
-  (60s) — but only while it still holds exactly what was copied, and any later
-  copy cancels the pending wipe. Passwords and the seed phrase are `sensitive`;
-  the email and address are not.
-- Jest maps `@sudobility/signic_sdk` to its `dist` entry (its package
-  `exports` has no CJS condition); tests mock it. components-rn `Text` takes
-  no `selectable`/`testID`.
-
-## Sibling packages
-
-`@sudobility/raidr_agent_types`, `@sudobility/raidr_agent_client`,
-`@sudobility/raidr_agent_lib` (repos in `~/projects/raidr_agent_{types,client,lib}`)
-and `@sudobility/raidr_types` are on npm and in `dependencies`. Releases go
-through `~/projects/raidr_app/scripts/push_all.sh`, which publishes them in
-dependency order before this app. The backend is `raidr_agent_api` (port 8038,
-the `VITE_API_URL` default).
-
-## Configuration that needs real values
-
-- `ios/RaidrAgent/GoogleService-Info.plist` and `android/app/google-services.json`
-  are the real configs of Firebase project `raidr-agent` for
-  `com.sudobility.raidr.agent` (the Android build fails, and iOS warns, if the
-  app ID and these files disagree). The Google URL scheme in both
-  `Info.plist`s is that plist's `REVERSED_CLIENT_ID`.
-- `.env` (copy `.env.example`) — `FIREBASE_*` for the desktop web apps,
-  `GOOGLE_OAUTH_CLIENT_ID_MACOS`, `GOOGLE_OAUTH_CLIENT_ID_WINDOWS`,
-  `GOOGLE_OAUTH_CLIENT_SECRET_WINDOWS`, `VITE_API_URL`. All names are listed in
-  `babel.config.js` `INLINED_ENV`, which is the allow-list of what reaches the bundle.
-- `app_store/.env` and `app_store/.keys/` — store API credentials (gitignored).
-- `DEVELOPMENT_TEAM` / `teamID` (`3UP4MZRP69`) and the Windows publisher
-  `CN=johnhuang` were carried over from the template.
-
-## Coding patterns
-
-- `import '@/polyfills/localStorage'` stays first in `App.tsx`, before any zustand store.
-- `import './src/polyfills/aiSdk'` stays first in `index.ts`, before anything imports `ai`.
-- All `process.env` reads go through `src/config/env.ts` and must be listed in `babel.config.js` `INLINED_ENV`.
-- Prose goes in `assets/locales/en/translation.json` (only `en` is registered; other locales fall back).
+- All `process.env` reads go through `src/config/env.ts` and must be listed in
+  `babel.config.js` `INLINED_ENV` (the allow-list of what reaches the bundle).
+- Platform suffixes: unsuffixed `.ts` = **desktop**; `.ios.ts`/`.android.ts` =
+  mobile. No `.macos.*`/`.windows.*` files.
+- Prose goes in `assets/locales/en/translation.json` (only `en` registered).
 - babel `module-resolver` aliases are first-match: specific aliases before `@`.
-
-## Signing in to the app
-
-The app's own sign-in (Firebase, through `AuthContext`) is the shared form —
-`LoginView` from `@sudobility/components-rn` — never a hand-built one. Which
-shell it gets follows one rule, the same as the web:
-
-- **A screen whose job is signing in** — somewhere the user navigates to in
-  order to sign in — renders `SignInPage` (`src/components/SignInPage.tsx`,
-  `LoginPage` from `@sudobility/building_blocks_rn`). Settings' Account pane
-  while signed out is one: the page fills the pane (`SplitView`
-  `detailScrolls`, `fill` layout on the narrow screen), since `LoginPage`
-  scrolls itself. As in music_app_rn.
-- **Sign-in in the middle of something else** — an action that needs an
-  account, or a "Sign in" row on a screen whose purpose is something else —
-  opens `SignInModal` (`src/components/SignInModal.tsx`, the shared
-  `LoginModal`) over the current screen. On success it closes itself and the
-  user stays where they were. Never navigate away to a login route from such a
-  place. Go on Ask while signed out is one of these. building_blocks_rn has no
-  modal; `LoginModal` is components-rn's.
-
-Both take their handlers, strings and providers from `useSignInForm()`
-(`src/hooks/useSignInForm.ts`): email sign-in/up, password reset
-(`sendPasswordResetEmail` from auth_lib, the same Firebase JS SDK), Google
-where `GOOGLE_SIGN_IN_OFFERED` (from `AuthContext`), no Apple
-(`APPLE_SIGN_IN_OFFERED` is false — its native module is not installed), the
-analytics events the old form sent, every string from `auth.*` in every
-locale, and Apple's mark toned from the navigation theme.
-`src/hooks/__tests__/signInStrings.test.ts` holds the locales to the hook.
-
-**`src/screens/LoginScreen.tsx` is not this.** It is the agent's _third-party
-site_ sign-in — a `WebView` that captures a site's session token — and has
-nothing to do with the app account.
+- `babel.config.js` keeps `@babel/plugin-transform-export-namespace-from`
+  because zod 4 (via the runner) uses `export * as`.
+- Honour the safe area on **every** screen via `useSafeAreaInsets()` — never a
+  magic padding number. **Tab-bar trap:** inside a tab navigator `insets.bottom`
+  already includes the tab-bar height, so pad a pinned bottom bar by
+  `insets.bottom` and nothing more (don't add tab-bar height, don't reserve it
+  on the root). Non-scroll screens pad top+bottom by the insets; scroll views go
+  full-bleed with scroll insets equal to the safe area.
 
 ## Gotchas
 
-- Metro runs on port **8094**.
+- Metro port is **8094**.
 - NativeWind's JSX transform is Metro-only; JSX behaves differently under Jest.
-- `jest.config.js` maps only `^@/(.*)$`; `@/assets/*` is not mapped, so tests that import `src/i18n` fail to resolve.
-- `react-native.config.js` disables native Firebase and Google Sign-In on macOS; desktop auth is the Firebase JS SDK + WebAuth PKCE.
-- The `localize` script still posts to the template's Whisperly endpoint (`.../jie9cytr/starter`) until a raidr agent endpoint exists.
+- `jest.config.js` maps only `^@/(.*)$`; `@sudobility/signic_sdk` is mapped to
+  its `dist` entry (its `exports` has no CJS condition); tests mock it.
+- `react-native.config.js` disables native Firebase and Google Sign-In on macOS;
+  desktop auth is the Firebase JS SDK + WebAuth PKCE.
+- **`react-native-svg` must be ≥ 15.15.5** — older versions draw nothing on
+  macOS under Fabric. Three deps are patched (`patches/`): `react-native-svg`,
+  `react-native-bottom-tabs`, `react-native-macos`.
+- The `localize` script still posts to the template's Whisperly endpoint until a
+  raidr agent endpoint exists.
 - `i18n` is initialised in both `index.ts` and `App.tsx` (harmless, inherited).
-- `macos/.xcode.env.local` is tracked (unlike iOS's); it only sets `NODE_BINARY=$(command -v node)`. The template's version pointed at a Homebrew node path and a missing `scripts/merge-env.js`.
 
-## Related projects
+## Sibling packages & origin
 
-- `raidr_agent_types` / `raidr_agent_client` / `raidr_agent_lib` — shared types, API client, business logic
-- `raidr_agent_api` — backend
-- `mogulgame_app_rn` — the app this was copied from
-- `sudojo_app_rn` — source of `app_store/`
-- `workflows` — reusable CI (`unified-cicd.yml`) and the `app_store` scripts
-
-## Screen rendering — safe area & scroll insets
-
-Honour the device safe area on **every** screen. Always use `useSafeAreaInsets()`
-from `react-native-safe-area-context` (or a `SafeAreaView` with explicit `edges`)
-and pad by the actual inset value. **Never hard-code a padding/margin in place of
-an inset** — a magic number like `paddingBottom: 80` happens to clear today's
-phone and is wrong on the next one.
-
-Decide per axis, by whether that axis scrolls:
-
-**Vertical:**
-- **NOT vertically scrollable** (a fixed screen, a pinned footer/CTA, a camera
-  overlay): the content area must stop at the **top and bottom** safe-area insets
-  — pad top by `insets.top`, bottom by `insets.bottom`. It must not reach the
-  physical top/bottom edge (status bar / notch / home indicator).
-- **Vertically scrollable**: let the scroll view render **full-bleed** to the top
-  and bottom edges, and give it top/bottom **scroll insets** equal to the safe
-  area (`contentInset` + `scrollIndicatorInsets`, or
-  `contentInsetAdjustmentBehavior="automatic"`). Content then starts/ends clear of
-  the unsafe regions while still scrolling edge-to-edge behind them.
-
-**Horizontal** (landscape, display cutout, rounded corners):
-- **NOT horizontally scrollable**: pad left/right by `insets.left` / `insets.right`.
-- **Horizontally scrollable**: render to the left/right edges and give it
-  left/right scroll insets.
-
-**Bottom CTAs under a tab bar — the trap that burns everyone:** inside a tab
-navigator, the bottom safe-area inset (`insets.bottom`, and what a shared
-`BottomActionBar` reads) **already includes the tab-bar height**. So a pinned
-bottom bar padded by `insets.bottom` already lands above the tab bar. Therefore:
-- DO pad the bottom bar by `insets.bottom` and nothing more.
-- DON'T add the tab-bar height on top of the inset, and DON'T reserve it again on
-  the screen root — that double-counts and floats the CTA too high.
-- DON'T pass a `tabBarHeight` (or similar) that makes the bar swap the inset for a
-  flat fixed gap — that ignores the inset and drops the CTA under the tab bar.
-
-Canonical fixed-screen shape: a flex-column root → the content/scroll region →
-a bottom action bar as the **last child** that pads by `insets.bottom` with no
-manual tab-bar math. Copy a screen already doing this correctly (e.g. a Settings
-screen with a Sign-Out button) rather than re-deriving the padding.
+`@sudobility/raidr_agent_{types,client,lib}` and `raidr_types` are deps (repos
+in `~/projects/raidr_agent_{types,client,lib}`); releases go through
+`~/projects/raidr_app/scripts/push_all.sh` in dependency order. Backend is
+`raidr_agent_api` (port 8038, the `VITE_API_URL` default). Scaffolded from
+`mogulgame_app_rn`; `app_store/` came from `sudojo_app_rn`.
