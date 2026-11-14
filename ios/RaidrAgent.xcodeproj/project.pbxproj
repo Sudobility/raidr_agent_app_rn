@@ -375,7 +375,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
+				OTHER_SWIFT_FLAGS = "$(inherited)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.sudobility.raidr.agent;
 				PRODUCT_NAME = RaidrAgent;
 				SWIFT_OBJC_BRIDGING_HEADER = "RaidrAgent/RaidrAgent-Bridging-Header.h";
@@ -407,7 +407,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
+				OTHER_SWIFT_FLAGS = "$(inherited)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.sudobility.raidr.agent;
 				PRODUCT_NAME = RaidrAgent;
 				SWIFT_OBJC_BRIDGING_HEADER = "RaidrAgent/RaidrAgent-Bridging-Header.h";
