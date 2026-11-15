@@ -46,7 +46,7 @@ fi
 # -- Step 2: Run translation API (already-translated shared files are skipped) -
 echo "Running translation API..."
 LOCALIZE_SCRIPT="$(mktemp)"
-curl -fsSL https://raw.githubusercontent.com/johnqh/workflows/main/scripts/localize_batch.cjs -o "$LOCALIZE_SCRIPT"
+curl -fsSL https://raw.githubusercontent.com/Sudobility/workflows/main/scripts/localize_batch.cjs -o "$LOCALIZE_SCRIPT"
 WHISPERLY_API_KEY="$(grep -h '^WHISPERLY_API_KEY=' ~/.develop/.keys ~/.keys ~/.keys.txt 2>/dev/null | head -1 | cut -d= -f2-)" node "$LOCALIZE_SCRIPT" "$RN_LOCALES" "$API_URL"
 rm -f "$LOCALIZE_SCRIPT"
 
