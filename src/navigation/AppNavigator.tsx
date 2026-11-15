@@ -16,11 +16,13 @@ import {
   ChatBubbleLeftRightIcon,
   ClockIcon,
   Cog6ToothIcon,
+  SparklesIcon,
 } from 'react-native-heroicons/outline';
 import {
   ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconSolid,
   ClockIcon as ClockIconSolid,
   Cog6ToothIcon as Cog6ToothIconSolid,
+  SparklesIcon as SparklesIconSolid,
 } from 'react-native-heroicons/solid';
 import type { SvgProps } from 'react-native-svg';
 
@@ -34,12 +36,15 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import type { RootTabParamList } from './types';
 
 import { AskStack } from './AskStack';
+import { AgentsStack } from './AgentsStack';
 import { HistoryStack } from './HistoryStack';
 import { SettingsStack } from './SettingsStack';
 import { AdaptiveTabbar, type AdaptiveTab } from './AdaptiveTabbar';
 
 // Android native tab icons (iOS uses SF Symbols, desktop uses the heroicons).
 const askPng = require('../../assets/tabicons/ask.png') as ImageSourcePropType;
+const agentsPng =
+  require('../../assets/tabicons/agents.png') as ImageSourcePropType;
 const historyPng =
   require('../../assets/tabicons/history.png') as ImageSourcePropType;
 const settingsPng =
@@ -70,6 +75,7 @@ const linking: LinkingOptions<RootTabParamList> = {
   config: {
     screens: {
       AskTab: 'ask',
+      AgentsTab: 'agents',
       HistoryTab: 'history',
       SettingsTab: 'settings',
     },
@@ -106,6 +112,14 @@ export function AppNavigator() {
           ChatBubbleLeftRightIcon,
           ChatBubbleLeftRightIconSolid
         ),
+      },
+      {
+        name: 'AgentsTab',
+        component: AgentsStack,
+        label: t('agents.title'),
+        sfSymbol: 'sparkles',
+        image: agentsPng,
+        renderIcon: sidebarIcon(SparklesIcon, SparklesIconSolid),
       },
       {
         name: 'HistoryTab',

@@ -154,6 +154,78 @@
     "openOn": "Open on {{site}}",
     "theSite": "the site"
   },
+  "schedule": {
+    "title": "Schedule",
+    "enable": "Run on a schedule",
+    "everyMinutes": "Every how many minutes",
+    "atTime": "At time (HH:mm)",
+    "onDays": "On days",
+    "nextRun": "Next run: {{when}}",
+    "kind": {
+      "interval": "Interval",
+      "daily": "Daily",
+      "weekly": "Weekly"
+    },
+    "summary": {
+      "interval": "Every {{count}} minute",
+      "interval_other": "Every {{count}} minutes",
+      "daily": "Every day at {{time}}",
+      "weekly": "{{days}} at {{time}}"
+    },
+    "day": {
+      "sun": "Sunday",
+      "mon": "Monday",
+      "tue": "Tuesday",
+      "wed": "Wednesday",
+      "thu": "Thursday",
+      "fri": "Friday",
+      "sat": "Saturday"
+    },
+    "dayShort": {
+      "sun": "Su",
+      "mon": "Mo",
+      "tue": "Tu",
+      "wed": "We",
+      "thu": "Th",
+      "fri": "Fr",
+      "sat": "Sa"
+    }
+  },
+  "session": {
+    "title": "Conversation",
+    "new": "New",
+    "heading": "Conversations",
+    "empty": "Ask anything to start. Follow-ups build on the conversation.",
+    "placeholder": "Ask a follow-up…",
+    "send": "Send",
+    "working": "Working…",
+    "failed": "That turn failed.",
+    "noResults": "No results for that.",
+    "turnCount": "{{count}} message",
+    "turnCount_other": "{{count}} messages"
+  },
+  "agents": {
+    "title": "Agents",
+    "heading": "Saved agents",
+    "detailTitle": "Agent",
+    "empty": "No agents yet. Start a conversation, or run a request and tap Save to reuse it.",
+    "notFound": "This agent is no longer available.",
+    "scheduled": "Scheduled",
+    "notScheduled": "Not scheduled",
+    "siteCount": "{{count}} site",
+    "siteCount_other": "{{count}} sites",
+    "request": "Request",
+    "sites": "Sites",
+    "schedule": "Schedule",
+    "runNow": "Run now",
+    "rename": "Rename",
+    "renameTitle": "Rename agent",
+    "delete": "Delete agent",
+    "save": "Save",
+    "saved": "Saved",
+    "saveTitle": "Save as agent",
+    "namePlaceholder": "Agent name"
+  },
   "history": {
     "title": "History",
     "runTitle": "Run",

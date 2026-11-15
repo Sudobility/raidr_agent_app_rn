@@ -66,6 +66,12 @@ export type HistoryStackParamList = {
   ResultDetail: ResultDetailParams;
 };
 
+export type AgentsStackParamList = {
+  Agents: undefined;
+  AgentDetail: { id: string };
+  Session: { sessionId: string };
+};
+
 /** Settings → Credentials → Add credential: find a site, then sign in. */
 export type AddCredentialStackParamList = {
   FindSite: undefined;
@@ -85,6 +91,7 @@ export type SettingsStackParamList = {
 // Root tab param list
 export type RootTabParamList = {
   AskTab: NavigatorScreenParams<AskStackParamList>;
+  AgentsTab: NavigatorScreenParams<AgentsStackParamList>;
   HistoryTab: NavigatorScreenParams<HistoryStackParamList>;
   SettingsTab: NavigatorScreenParams<SettingsStackParamList>;
 };
@@ -114,6 +121,20 @@ export type LoginScreenProps = {
 export type ResultsScreenProps = NativeStackScreenProps<
   AskStackParamList,
   'Results'
+>;
+
+// Screen props types — Agents stack
+export type AgentsScreenProps = NativeStackScreenProps<
+  AgentsStackParamList,
+  'Agents'
+>;
+export type AgentDetailScreenProps = NativeStackScreenProps<
+  AgentsStackParamList,
+  'AgentDetail'
+>;
+export type SessionScreenProps = NativeStackScreenProps<
+  AgentsStackParamList,
+  'Session'
 >;
 
 // Screen props types — History stack

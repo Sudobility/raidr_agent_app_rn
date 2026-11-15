@@ -43,6 +43,9 @@ import { QUERY_KEYS } from '@sudobility/raidr_agent_client';
 import { useAgentClient } from '@/hooks/useAgentClient';
 import { useAuth } from '@/context/AuthContext';
 import { useRunFlowStore } from '@/stores/runFlowStore';
+import { useSavedAgentsStore } from '@/stores/savedAgentsStore';
+import { buildSavedAgentFromRun } from '@/lib/savedAgent';
+import AgentNameModal from '@/components/AgentNameModal';
 import { getSiteToken } from '@/lib/secureStorage';
 import { getToolApiKey } from '@/lib/toolApiKeys';
 import type { RunCallbacks, RunHandle } from '@/lib/runTransport';
@@ -76,6 +79,9 @@ export default function ResultsScreen({ navigation }: ResultsScreenProps) {
   const client = useAgentClient();
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
+  const upsertAgent = useSavedAgentsStore(s => s.upsert);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const [statuses, setStatuses] = useState<Record<string, SiteStatusData>>({});
   const [calls, setCalls] = useState<Record<string, CallData>>({});
@@ -308,8 +314,46 @@ export default function ResultsScreen({ navigation }: ResultsScreenProps) {
     navigation.navigate('AllResults', { results, groups, best, locationRequest });
   };
 
+  const canSave = !!intent && !!plan && supportedSites(plan).length > 0;
+  const saveAgent = (name: string) => {
+    if (!intent || !plan) {
+      return;
+    }
+    const agent = buildSavedAgentFromRun({
+      name,
+      request,
+      intent,
+      sites: supportedSites(plan).map(s => ({
+        apiHost: s.apiHost,
+        ...(s.tools.length > 0 ? { tools: s.tools } : {}),
+      })),
+      inputs,
+      location: location ?? null,
+    });
+    upsertAgent(agent);
+    setSaveOpen(false);
+    setSaved(true);
+    trackButtonClick('results_save_agent');
+  };
+
   return (
-    <Screen title={t('results.title')} layout='list'>
+    <Screen
+      title={t('results.title')}
+      layout='list'
+      headerRight={
+        canSave ? (
+          <Button
+            variant='ghost'
+            size='sm'
+            onPress={() => setSaveOpen(true)}
+            disabled={saved}
+            accessibilityLabel={t('agents.save')}
+          >
+            {saved ? t('agents.saved') : t('agents.save')}
+          </Button>
+        ) : undefined
+      }
+    >
       {/* Progress */}
       <Text
         size='sm'
@@ -449,6 +493,15 @@ export default function ResultsScreen({ navigation }: ResultsScreenProps) {
           {t('results.empty')}
         </Text>
       ) : null}
+
+      <AgentNameModal
+        visible={saveOpen}
+        title={t('agents.saveTitle')}
+        initialName={request}
+        submitLabel={t('agents.save')}
+        onSubmit={saveAgent}
+        onClose={() => setSaveOpen(false)}
+      />
     </Screen>
   );
 }

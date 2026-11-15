@@ -23,6 +23,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/context/AuthContext';
 import { ApiProvider } from '@/context/ApiContext';
 import { useAuth } from '@/context/AuthContext';
+import { useAgentSync } from '@/lib/agentSync';
+import { useAgentScheduler } from '@/lib/scheduler';
 import { ThemeProvider } from '@sudobility/building_blocks_rn';
 import { PortalHost } from '@sudobility/components-rn';
 import { ThemeVarsProvider } from '@/components/ThemeVarsProvider';
@@ -48,6 +50,10 @@ const styles = StyleSheet.create({
 
 function AppContent() {
   const { isReady } = useAuth();
+  // Keep the on-device saved agents in sync with the server copy.
+  useAgentSync();
+  // Run due agent schedules while the app process is alive.
+  useAgentScheduler();
   // Replaces expo-status-bar's `style='auto'`: resolve the active theme the
   // same way AppNavigator does and pick the bar content colour to match.
   const systemColorScheme = useColorScheme();
