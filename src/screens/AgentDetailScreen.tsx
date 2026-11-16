@@ -8,19 +8,22 @@
  */
 
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { View, Switch } from 'react-native';
 import { Text, Button, Spinner } from '@sudobility/components-rn';
 import { useTranslation } from 'react-i18next';
 import Screen from '@/components/layout/Screen';
 import AgentNameModal from '@/components/AgentNameModal';
 import ScheduleModal from '@/components/ScheduleModal';
+import AgentTranscript from '@/components/AgentTranscript';
 import { useSavedAgentsStore } from '@/stores/savedAgentsStore';
 import { useAgentClient } from '@/hooks/useAgentClient';
 import { useAuth } from '@/context/AuthContext';
 import { prepareAndSeedSavedAgent } from '@/lib/agentRun';
+import { runAutonomousAgent } from '@/lib/autonomousRun';
 import { touchAgent } from '@/lib/savedAgent';
 import { computeNextRun } from '@/lib/schedule';
 import type { AgentSchedule } from '@sudobility/raidr_agent_types';
+import type { AgentEvent } from '@/lib/agentEngine/types';
 import { trackButtonClick } from '@/analytics';
 import type { AgentDetailScreenProps } from '@/navigation/types';
 
@@ -42,6 +45,8 @@ export default function AgentDetailScreen({
   const [error, setError] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [scheduling, setScheduling] = useState(false);
+  const [runEvents, setRunEvents] = useState<AgentEvent[]>([]);
+  const [runSummary, setRunSummary] = useState<string | null>(null);
 
   if (!agent) {
     return (
@@ -53,18 +58,33 @@ export default function AgentDetailScreen({
     );
   }
 
+  const isAutonomous = agent.mode === 'autonomous';
+
   const runNow = async () => {
     trackButtonClick('agent_run_now');
     setBusy(true);
     setError(null);
     try {
-      await prepareAndSeedSavedAgent(client, getToken, agent);
-      navigation.getParent()?.navigate('AskTab', { screen: 'Results' });
+      if (isAutonomous) {
+        setRunEvents([]);
+        setRunSummary(null);
+        const result = await runAutonomousAgent(client, getToken, agent, {
+          onEvent: event => setRunEvents(prev => [...prev, event]),
+        });
+        setRunSummary(result.summary);
+      } else {
+        await prepareAndSeedSavedAgent(client, getToken, agent);
+        navigation.getParent()?.navigate('AskTab', { screen: 'Results' });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
+  };
+
+  const setAutonomous = (on: boolean) => {
+    upsert(touchAgent({ ...agent, mode: on ? 'autonomous' : 'retrieval' }));
   };
 
   const rename = (name: string) => {
@@ -143,6 +163,24 @@ export default function AgentDetailScreen({
         </View>
 
         <View>
+          <View className='flex-row items-center justify-between'>
+            <Text
+              size='sm'
+              weight='semibold'
+              color='muted'
+              transform='uppercase'
+              className='tracking-wide'
+            >
+              {t('agents.mode')}
+            </Text>
+            <Switch value={isAutonomous} onValueChange={setAutonomous} />
+          </View>
+          <Text size='xs' color='muted' className='mt-1'>
+            {isAutonomous ? t('agents.autonomousOn') : t('agents.autonomousOff')}
+          </Text>
+        </View>
+
+        <View>
           <Text
             size='sm'
             weight='semibold'
@@ -177,6 +215,33 @@ export default function AgentDetailScreen({
           <Text size='sm' color='danger'>
             {error}
           </Text>
+        ) : null}
+
+        {isAutonomous && (busy || runEvents.length > 0 || runSummary) ? (
+          <View>
+            <Text
+              size='sm'
+              weight='semibold'
+              color='muted'
+              transform='uppercase'
+              className='mb-1 tracking-wide'
+            >
+              {t('agents.lastRun')}
+            </Text>
+            <AgentTranscript events={runEvents} />
+            {runSummary ? (
+              <View className='mt-2 px-4 py-2 rounded-2xl bg-card border border-foreground/10'>
+                <Text size='base'>{runSummary}</Text>
+              </View>
+            ) : busy ? (
+              <View className='flex-row items-center mt-2'>
+                <Spinner size='small' />
+                <Text size='sm' color='muted' className='ml-2'>
+                  {t('session.working')}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         ) : null}
 
         <View className='gap-3'>

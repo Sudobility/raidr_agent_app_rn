@@ -17,6 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useAgentClient } from '@/hooks/useAgentClient';
 import { useSavedAgentsStore } from '@/stores/savedAgentsStore';
 import { runSavedAgentHeadless } from './agentRun';
+import { runAutonomousHeadless } from './autonomousRun';
 import { isDue } from './schedule';
 
 /** How often to check for due agents. */
@@ -49,7 +50,11 @@ export function useAgentScheduler(): void {
         }
         running.current.add(agent.id);
         try {
-          await runSavedAgentHeadless(client, getToken, agent);
+          if (agent.mode === 'autonomous') {
+            await runAutonomousHeadless(client, getToken, agent);
+          } else {
+            await runSavedAgentHeadless(client, getToken, agent);
+          }
         } catch {
           // A failed scheduled run is recorded in History by the run path;
           // swallow here so one bad agent doesn't stop the others.

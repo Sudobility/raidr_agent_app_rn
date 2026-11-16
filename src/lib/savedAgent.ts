@@ -133,6 +133,8 @@ function sanitizeAgent(value: unknown): SavedAgent | null {
           tags: value.tags.filter((x): x is string => typeof x === 'string'),
         }
       : {}),
+    ...(value.mode === 'autonomous' ? { mode: 'autonomous' as const } : {}),
+    ...(typeof value.goal === 'string' ? { goal: value.goal } : {}),
     request,
     intent: intent as unknown as AgentIntent,
     sites: sanitizeSites(value.sites),

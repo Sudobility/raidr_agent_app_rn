@@ -201,6 +201,7 @@
     "working": "Working…",
     "failed": "That turn failed.",
     "noResults": "No results for that.",
+    "needKey": "Add your own AI provider key in Settings → API Keys to chat with the assistant.",
     "turnCount": "{{count}} message",
     "turnCount_other": "{{count}} messages"
   },
@@ -217,6 +218,10 @@
     "request": "Request",
     "sites": "Sites",
     "schedule": "Schedule",
+    "mode": "Autonomous",
+    "autonomousOn": "Runs an agentic loop that can take actions on the site and remembers across runs. Requires your own AI key (Settings → API Keys).",
+    "autonomousOff": "Replays the request as a one-shot retrieval run.",
+    "lastRun": "Last run",
     "runNow": "Run now",
     "rename": "Rename",
     "renameTitle": "Rename agent",

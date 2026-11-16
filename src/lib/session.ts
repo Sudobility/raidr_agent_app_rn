@@ -14,18 +14,27 @@ import type {
   ResultGroup,
   ResultItem,
 } from '@sudobility/raidr_agent_types';
+import type { AgentEvent } from './agentEngine/types';
 import { newAgentId } from './savedAgent';
 
 export type TurnStatus = 'running' | 'done' | 'failed';
 
-/** One exchange in a conversation: the user's request and its run output. */
+/**
+ * One exchange in a conversation. A general-assistant turn carries the agentic
+ * `transcript` + `response`; a legacy retrieval turn carries `results` etc.
+ */
 export interface SessionTurn {
   id: string;
   /** The raw text the user typed (what the UI shows). */
   request: string;
-  results: ResultItem[];
-  best: BestData | null;
-  groups: ResultGroup[];
+  /** Agentic turn: the thought/action/observation stream. */
+  transcript?: AgentEvent[];
+  /** Agentic turn: the assistant's final reply. */
+  response?: string;
+  /** Retrieval turn (Phase 2): result cards. */
+  results?: ResultItem[];
+  best?: BestData | null;
+  groups?: ResultGroup[];
   status: TurnStatus;
   error?: string;
   createdAt: string;
@@ -37,6 +46,8 @@ export interface AgentSession {
   title: string;
   /** The saved agent this started from, if any. */
   savedAgentId?: string;
+  /** Rolling compacted summary of earlier turns (keeps the prompt bounded). */
+  summary?: string;
   turns: SessionTurn[];
   createdAt: string;
   updatedAt: string;
@@ -58,9 +69,16 @@ const CONTEXT_TURNS = 3;
 const SUMMARY_CHARS = 160;
 
 function turnSummary(turn: SessionTurn): string {
+  // Agentic turns carry a response; prefer it.
+  if (turn.response) {
+    return turn.response.length > SUMMARY_CHARS
+      ? `${turn.response.slice(0, SUMMARY_CHARS)}…`
+      : turn.response;
+  }
+  const results = turn.results ?? [];
   const top =
-    (turn.best && turn.results.find(r => r.id === turn.best?.resultId)) ||
-    turn.results[0];
+    (turn.best && results.find(r => r.id === turn.best?.resultId)) ||
+    results[0];
   if (!top) {
     return turn.status === 'failed' ? '(no answer)' : '';
   }
@@ -112,13 +130,17 @@ function sanitizeTurn(value: unknown): SessionTurn | null {
   return {
     id: value.id,
     request: value.request,
-    results: Array.isArray(value.results)
-      ? (value.results as ResultItem[])
-      : [],
-    best: isObject(value.best) ? (value.best as unknown as BestData) : null,
-    groups: Array.isArray(value.groups)
-      ? (value.groups as ResultGroup[])
-      : [],
+    ...(Array.isArray(value.transcript)
+      ? { transcript: value.transcript as AgentEvent[] }
+      : {}),
+    ...(typeof value.response === 'string' ? { response: value.response } : {}),
+    ...(Array.isArray(value.results)
+      ? { results: value.results as ResultItem[] }
+      : {}),
+    ...(isObject(value.best) ? { best: value.best as unknown as BestData } : {}),
+    ...(Array.isArray(value.groups)
+      ? { groups: value.groups as ResultGroup[] }
+      : {}),
     // A run that was still streaming when the app closed is marked failed.
     status: status === 'running' ? 'failed' : status,
     ...(typeof value.error === 'string' ? { error: value.error } : {}),
@@ -157,6 +179,7 @@ export function sanitizeSessions(value: unknown): AgentSession[] {
       ...(typeof item.savedAgentId === 'string'
         ? { savedAgentId: item.savedAgentId }
         : {}),
+      ...(typeof item.summary === 'string' ? { summary: item.summary } : {}),
       turns: Array.isArray(item.turns)
         ? item.turns
             .map(sanitizeTurn)

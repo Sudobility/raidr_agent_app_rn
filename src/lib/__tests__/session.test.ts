@@ -110,7 +110,8 @@ describe('sanitizeSessions', () => {
       },
     ]);
     expect(out.turns[0].results).toHaveLength(1);
-    expect(out.turns[0].best).toBeNull();
-    expect(out.turns[0].groups).toEqual([]);
+    // best/groups are carried only when present (agentic turns omit them).
+    expect(out.turns[0].best).toBeUndefined();
+    expect(out.turns[0].groups).toBeUndefined();
   });
 });

@@ -59,6 +59,12 @@ jest.mock(
   () => require('react-native-safe-area-context/jest/mock').default
 );
 
+// AsyncStorage: the library's in-memory Jest mock, so any persisted zustand
+// store can be imported in a test without the native bridge.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+
 // Geolocation (replacing expo-location); no suite uses the device location,
 // but mock it so resolving the native module never touches the real bridge.
 jest.mock('@react-native-community/geolocation', () => ({

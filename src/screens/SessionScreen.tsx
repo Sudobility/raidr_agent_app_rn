@@ -1,61 +1,57 @@
 /**
- * Session screen — a conversation with the agent.
+ * Session screen — a long-lasting general assistant conversation.
  *
- * Shows the thread of turns (the user's request, then its results) and a
- * composer. Each send folds the recent turns into the request for context
- * ({@link buildTurnRequest}), runs it client-side ({@link runTurn}) and streams
- * the answers in. The in-flight turn is held in local state and committed to
- * the sessions store when it finishes, so streaming doesn't thrash storage.
+ * Always-on composer; each message runs the multi-site agentic loop
+ * ({@link runAssistantTurn}) across whichever sites fit, streaming the
+ * thought/action/observation transcript and a final reply. The prompt stays
+ * bounded by compaction: a rolling summary covers older turns while the recent
+ * ones are sent verbatim. The in-flight turn is held locally and committed to
+ * the store when it finishes. Requires the user's own LLM key.
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Text, Input, Button, Spinner } from '@sudobility/components-rn';
 import { useTranslation } from 'react-i18next';
-import type {
-  BestData,
-  ResultGroup,
-  ResultItem,
-} from '@sudobility/raidr_agent_types';
 import Screen from '@/components/layout/Screen';
-import ResultList from '@/components/ResultList';
+import AgentTranscript from '@/components/AgentTranscript';
 import { useAgentClient } from '@/hooks/useAgentClient';
 import { useAuth } from '@/context/AuthContext';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { useSessionsStore } from '@/stores/sessionsStore';
+import { newSessionId, type SessionTurn, type TurnStatus } from '@/lib/session';
+import { runAssistantTurn } from '@/lib/assistantRun';
+import { NoLlmKeyError } from '@/lib/autonomousRun';
+import { loadProviderKeys } from '@/lib/llmKeys';
 import {
-  buildTurnRequest,
-  newSessionId,
-  type SessionTurn,
-  type TurnStatus,
-} from '@/lib/session';
-import { runTurn } from '@/lib/sessionRun';
-import type { RunHandle } from '@/lib/runTransport';
+  buildContext,
+  createSessionSummarizer,
+  DEFAULT_KEEP_RECENT,
+  type CompactItem,
+} from '@/lib/compaction';
+import type { AgentEvent } from '@/lib/agentEngine/types';
 import { trackButtonClick, trackScreenView } from '@/analytics';
 import type { SessionScreenProps } from '@/navigation/types';
 
-/** The in-flight turn, held locally until it finishes. */
 interface ActiveTurn {
   id: string;
   request: string;
-  results: ResultItem[];
-  best: BestData | null;
-  groups: ResultGroup[];
+  transcript: AgentEvent[];
+  response: string;
   status: TurnStatus;
   error?: string;
 }
 
 function TurnView({
   request,
-  results,
-  groups,
-  best,
+  transcript,
+  response,
   status,
   error,
 }: {
   request: string;
-  results: ResultItem[];
-  groups: ResultGroup[];
-  best: BestData | null;
+  transcript: AgentEvent[];
+  response: string;
   status: TurnStatus;
   error?: string;
 }) {
@@ -67,7 +63,12 @@ function TurnView({
           <Text size='base'>{request}</Text>
         </View>
       </View>
-      {status === 'running' ? (
+      {transcript.length > 0 ? (
+        <View className='mb-2'>
+          <AgentTranscript events={transcript} />
+        </View>
+      ) : null}
+      {status === 'running' && !response ? (
         <View className='flex-row items-center'>
           <Spinner size='small' />
           <Text size='sm' color='muted' className='ml-2'>
@@ -78,13 +79,11 @@ function TurnView({
         <Text size='sm' color='danger'>
           {error ?? t('session.failed')}
         </Text>
-      ) : results.length === 0 ? (
-        <Text size='sm' color='muted'>
-          {t('session.noResults')}
-        </Text>
-      ) : (
-        <ResultList results={results} groups={groups} best={best} />
-      )}
+      ) : response ? (
+        <View className='px-4 py-2 rounded-2xl bg-card border border-foreground/10 self-start max-w-[90%]'>
+          <Text size='base'>{response}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -95,24 +94,59 @@ export default function SessionScreen({ route }: SessionScreenProps) {
 
   const session = useSessionsStore(s => s.sessions.find(x => x.id === sessionId));
   const addTurn = useSessionsStore(s => s.addTurn);
+  const setSummary = useSessionsStore(s => s.setSummary);
 
   const client = useAgentClient();
   const { getToken } = useAuth();
+  const providerOrder = useSettingsStore(s => s.providerOrder);
 
   const [input, setInput] = useState('');
   const [active, setActive] = useState<ActiveTurn | null>(null);
-  const handleRef = useRef<RunHandle | null>(null);
+  const [hasKey, setHasKey] = useState<boolean | null>(null);
   const cancelledRef = useRef(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     trackScreenView('Session');
+    loadProviderKeys(providerOrder)
+      .then(keys => setHasKey(keys.length > 0))
+      .catch(() => setHasKey(false));
     return () => {
       cancelledRef.current = true;
-      handleRef.current?.abort();
     };
-  }, []);
+  }, [providerOrder]);
 
-  const turns = session?.turns ?? [];
+  const turns = useMemo(() => session?.turns ?? [], [session]);
+
+  /** Fold the turn that just dropped out of the recent window into the summary. */
+  const maybeCompact = useCallback(
+    async (committed: SessionTurn[], priorSummary: string) => {
+      if (committed.length <= DEFAULT_KEEP_RECENT) {
+        return;
+      }
+      const dropped = committed[committed.length - DEFAULT_KEEP_RECENT - 1];
+      if (!dropped) {
+        return;
+      }
+      try {
+        const providers = await loadProviderKeys(providerOrder);
+        if (providers.length === 0) {
+          return;
+        }
+        const items: CompactItem[] = [
+          { role: 'user', text: dropped.request },
+          { role: 'agent', text: dropped.response ?? '(no reply)' },
+        ];
+        const summary = await createSessionSummarizer(providers).summarize(
+          priorSummary,
+          items
+        );
+        setSummary(sessionId, summary);
+      } catch {
+        // Compaction is best-effort; the recent turns still carry context.
+      }
+    },
+    [providerOrder, sessionId, setSummary]
+  );
 
   const send = useCallback(async () => {
     const raw = input.trim();
@@ -121,20 +155,26 @@ export default function SessionScreen({ route }: SessionScreenProps) {
     }
     trackButtonClick('session_send');
     setInput('');
-    const turnId = newSessionId();
-    const priorTurns = useSessionsStore
-      .getState()
-      .sessions.find(s => s.id === sessionId)?.turns ?? [];
     cancelledRef.current = false;
+
     const current: ActiveTurn = {
-      id: turnId,
+      id: newSessionId(),
       request: raw,
-      results: [],
-      best: null,
-      groups: [],
+      transcript: [],
+      response: '',
       status: 'running',
     };
     setActive(current);
+
+    // Build the bounded context: summary + the recent turns verbatim.
+    const priorSummary = session?.summary ?? '';
+    const recent: CompactItem[] = turns
+      .slice(-DEFAULT_KEEP_RECENT)
+      .flatMap(turn => [
+        { role: 'user' as const, text: turn.request },
+        { role: 'agent' as const, text: turn.response ?? '(no reply)' },
+      ]);
+    const context = buildContext(priorSummary, recent);
 
     const commit = (final: ActiveTurn) => {
       if (cancelledRef.current) {
@@ -143,76 +183,48 @@ export default function SessionScreen({ route }: SessionScreenProps) {
       const turn: SessionTurn = {
         id: final.id,
         request: final.request,
-        results: final.results,
-        best: final.best,
-        groups: final.groups,
+        transcript: final.transcript,
+        response: final.response,
         status: final.status,
         ...(final.error ? { error: final.error } : {}),
         createdAt: new Date().toISOString(),
       };
       addTurn(sessionId, turn);
       setActive(null);
-      handleRef.current = null;
+      void maybeCompact([...turns, turn], priorSummary);
     };
 
     try {
-      const handle = await runTurn(
-        client,
-        getToken,
-        buildTurnRequest(priorTurns, raw),
-        {
-          onPart: part => {
-            if (cancelledRef.current) {
-              return;
-            }
-            setActive(prev => {
-              if (!prev) {
-                return prev;
-              }
-              switch (part.type) {
-                case 'result':
-                  return prev.results.some(r => r.id === part.data.id)
-                    ? {
-                        ...prev,
-                        results: prev.results.map(r =>
-                          r.id === part.data.id ? part.data : r
-                        ),
-                      }
-                    : { ...prev, results: [...prev.results, part.data] };
-                case 'best':
-                  return { ...prev, best: part.data };
-                case 'groups':
-                  return { ...prev, groups: part.data.groups };
-                default:
-                  return prev;
-              }
-            });
-          },
-          onError: err => {
-            setActive(prev =>
-              prev ? { ...prev, status: 'failed', error: err.message } : prev
-            );
-          },
-          onFinish: () => {
-            setActive(prev => {
-              if (prev) {
-                commit({ ...prev, status: 'done' });
-              }
-              return prev;
-            });
-          },
-        }
-      );
-      if (cancelledRef.current) {
-        handle.abort();
-        return;
-      }
-      handleRef.current = handle;
+      const result = await runAssistantTurn(client, getToken, raw, {
+        memoryId: sessionId,
+        ...(context ? { context } : {}),
+        onEvent: event => {
+          if (cancelledRef.current) {
+            return;
+          }
+          setActive(prev =>
+            prev
+              ? {
+                  ...prev,
+                  transcript: [...prev.transcript, event],
+                  response:
+                    event.type === 'final' ? event.summary : prev.response,
+                }
+              : prev
+          );
+        },
+      });
+      commit({ ...current, response: result.summary, status: 'done' });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message =
+        err instanceof NoLlmKeyError
+          ? err.message
+          : err instanceof Error
+          ? err.message
+          : String(err);
       commit({ ...current, status: 'failed', error: message });
     }
-  }, [active, addTurn, client, getToken, input, sessionId]);
+  }, [active, addTurn, client, getToken, input, maybeCompact, session?.summary, sessionId, turns]);
 
   const composer = (
     <View className='flex-row items-end gap-2 px-4 py-3 border-t border-foreground/10 bg-background'>
@@ -240,6 +252,11 @@ export default function SessionScreen({ route }: SessionScreenProps) {
       layout='list'
       footer={composer}
     >
+      {hasKey === false ? (
+        <View className='mb-4 p-3 rounded-lg bg-primary/10'>
+          <Text size='sm'>{t('session.needKey')}</Text>
+        </View>
+      ) : null}
       {turns.length === 0 && !active ? (
         <Text size='base' color='muted' className='px-1'>
           {t('session.empty')}
@@ -249,9 +266,8 @@ export default function SessionScreen({ route }: SessionScreenProps) {
         <TurnView
           key={turn.id}
           request={turn.request}
-          results={turn.results}
-          groups={turn.groups}
-          best={turn.best}
+          transcript={turn.transcript ?? []}
+          response={turn.response ?? ''}
           status={turn.status}
           {...(turn.error ? { error: turn.error } : {})}
         />
@@ -259,9 +275,8 @@ export default function SessionScreen({ route }: SessionScreenProps) {
       {active ? (
         <TurnView
           request={active.request}
-          results={active.results}
-          groups={active.groups}
-          best={active.best}
+          transcript={active.transcript}
+          response={active.response}
           status={active.status}
           {...(active.error ? { error: active.error } : {})}
         />
