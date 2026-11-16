@@ -3,9 +3,10 @@
  *
  * Per message: understand the request to pick candidate sites, load the top
  * few sites' tools into one namespaced toolset, then drive the agentic loop
- * ({@link runAgentTask}) across them with the user's LLM key, each site's
- * Keychain token, and the session's persistent memory. Prior context is folded
- * in via compaction so the prompt stays bounded.
+ * ({@link runAgentTask}) across them. Each model decision is cloud (server key)
+ * or local (own key) per {@link resolveAgentStepCaller}; site calls use each
+ * site's Keychain token, and the session keeps persistent memory. Prior context
+ * is folded in via compaction so the prompt stays bounded.
  */
 
 import type {
@@ -16,15 +17,13 @@ import {
   DirectSiteConnector,
   type FetchLike,
 } from '@sudobility/raidr_agent_lib/runner';
-import { useSettingsStore } from '@/stores/settingsStore';
-import { loadProviderKeys } from './llmKeys';
 import { createSiteSource } from './localAgent';
 import { understandRequest } from './agentFlow';
 import { getDeviceContext } from './deviceContext';
 import { getSiteToken } from './secureStorage';
 import { getToolApiKey } from './toolApiKeys';
 import { createAgentMemory } from './agentMemory';
-import { createAgentStepCaller } from './agentEngine/caller';
+import { resolveAgentStepCaller } from './agentCaller';
 import { runAgentTask } from './agentEngine/loop';
 import {
   buildMultiSiteToolset,
@@ -34,7 +33,6 @@ import {
   type SiteToolset,
 } from './agentEngine/multiSite';
 import type { AgentEvent, RunAgentTaskResult } from './agentEngine/types';
-import { NoLlmKeyError } from './autonomousRun';
 
 /** Most sites one assistant turn pulls tools from (keeps the toolset bounded). */
 const MAX_ASSISTANT_SITES = 4;
@@ -59,12 +57,6 @@ export async function runAssistantTurn(
   message: string,
   options: AssistantTurnOptions
 ): Promise<AssistantTurnResult> {
-  const { providerOrder } = useSettingsStore.getState();
-  const providers = await loadProviderKeys(providerOrder);
-  if (providers.length === 0) {
-    throw new NoLlmKeyError();
-  }
-
   // Pick candidate sites for this message.
   const understood = await understandRequest(client, getToken, {
     request: message,
@@ -100,8 +92,7 @@ export async function runAssistantTurn(
   const executor = createMultiSiteExecutor(connector, auth);
 
   try {
-    const caller = createAgentStepCaller({
-      providers,
+    const caller = await resolveAgentStepCaller(client, getToken, {
       ...(options.signal ? { signal: options.signal } : {}),
     });
     const result = await runAgentTask({

@@ -201,7 +201,7 @@
     "working": "Working…",
     "failed": "That turn failed.",
     "noResults": "No results for that.",
-    "needKey": "Add your own AI provider key in Settings → API Keys to chat with the assistant.",
+    "needKey": "Local mode is on but no AI key is set. Add one in Settings → API Keys, or switch to cloud mode.",
     "turnCount": "{{count}} message",
     "turnCount_other": "{{count}} messages"
   },

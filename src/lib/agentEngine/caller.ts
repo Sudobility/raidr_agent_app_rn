@@ -1,10 +1,14 @@
 /**
- * The agentic model step: build a prompt (goal + tools + memory + observations),
- * call the user's own LLM provider directly on-device, and parse one structured
- * decision back. Uses `@sudobility/shapeshyft_engine/core`'s RN-safe
- * `buildProviderRequest` + `parseProviderResponse` — no ShapeShyft round-trip,
- * so it needs the user's own key (local providers, in their order, with
- * fallthrough), exactly like local run mode.
+ * The agentic model step — LOCAL route (the user's own key). Builds a prompt
+ * (goal + tools + memory + observations), calls the user's LLM provider directly
+ * on-device, and parses one structured decision back. Uses
+ * `@sudobility/shapeshyft_engine/core`'s RN-safe `buildProviderRequest` +
+ * `parseProviderResponse` — no server round-trip — exactly like local run mode.
+ *
+ * The CLOUD route (server's key via the managed `agent` ShapeShyft endpoint, no
+ * user key) lives in `src/lib/agentCaller.ts`, which also chooses between the
+ * two from the `agentMode` setting. This module owns the local prompt; the
+ * cloud prompt lives on the managed endpoint.
  */
 
 import {
@@ -99,7 +103,7 @@ function buildPrompt(input: AgentPromptInput): string {
   return parts.join('\n\n');
 }
 
-function coerce(content: unknown): AgentStepOutput {
+export function coerce(content: unknown): AgentStepOutput {
   const obj = (content ?? {}) as Record<string, unknown>;
   const rawAction = obj.action as Record<string, unknown> | undefined;
   const action =

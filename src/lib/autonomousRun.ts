@@ -1,12 +1,13 @@
 /**
  * Run an autonomous agent on-device: pick its target site, load that site's
- * tools, and drive the agentic loop ({@link runAgentTask}) with the user's own
- * LLM key, the Keychain site token, and the agent's persistent memory.
+ * tools, and drive the agentic loop ({@link runAgentTask}) with the Keychain
+ * site token and the agent's persistent memory.
  *
- * Requires at least one saved LLM provider key (local mode) — the agentic loop
- * calls the provider directly. With no key it throws, and the caller surfaces a
- * prompt to add one. Tool actions (including writes) use the device's token, so
- * this only runs while the app is alive.
+ * Each model decision goes through {@link resolveAgentStepCaller}: by default
+ * the cloud route (server's key, no user key), or the device's own key when the
+ * user chose local mode and has one. No LLM key is required. Tool actions
+ * (including writes) use the device's token, so this only runs while the app is
+ * alive.
  */
 
 import type {
@@ -18,13 +19,11 @@ import {
   DirectSiteConnector,
   type FetchLike,
 } from '@sudobility/raidr_agent_lib/runner';
-import { useSettingsStore } from '@/stores/settingsStore';
-import { loadProviderKeys } from './llmKeys';
 import { createSiteSource } from './localAgent';
 import { getSiteToken } from './secureStorage';
 import { getToolApiKey } from './toolApiKeys';
 import { createAgentMemory } from './agentMemory';
-import { createAgentStepCaller } from './agentEngine/caller';
+import { resolveAgentStepCaller } from './agentCaller';
 import { createSiteExecutor } from './agentEngine/executor';
 import { buildToolset } from './agentEngine/tools';
 import { runAgentTask } from './agentEngine/loop';
@@ -43,16 +42,21 @@ export function agentGoal(agent: SavedAgent): string {
   return agent.goal?.trim() || agent.request;
 }
 
+/**
+ * Kept for callers that still import it; no longer thrown now that the cloud
+ * route needs no key. Local mode with no key silently falls back to cloud.
+ */
 export class NoLlmKeyError extends Error {
   constructor() {
-    super('Add your own AI provider key in Settings to run autonomous agents.');
+    super('Add your own AI provider key in Settings, or use cloud mode.');
     this.name = 'NoLlmKeyError';
   }
 }
 
 /**
- * Run one autonomous agent to completion. Throws {@link NoLlmKeyError} with no
- * provider key, or an Error if the agent has no site to act on.
+ * Run one autonomous agent to completion. Throws if the agent has no site to
+ * act on. The model decision is cloud (server key) or local (own key) per the
+ * `agentMode` setting — no key is required.
  */
 export async function runAutonomousAgent(
   client: RaidrAgentClient,
@@ -60,12 +64,6 @@ export async function runAutonomousAgent(
   agent: SavedAgent,
   options: AutonomousRunOptions = {}
 ): Promise<RunAgentTaskResult> {
-  const { providerOrder } = useSettingsStore.getState();
-  const providers = await loadProviderKeys(providerOrder);
-  if (providers.length === 0) {
-    throw new NoLlmKeyError();
-  }
-
   const apiHost = agent.sites[0]?.apiHost;
   if (!apiHost) {
     throw new Error('This agent has no site to act on.');
@@ -84,8 +82,7 @@ export async function runAutonomousAgent(
   });
   const session = await connector.open(apiHost, token);
   try {
-    const caller = createAgentStepCaller({
-      providers,
+    const caller = await resolveAgentStepCaller(client, getToken, {
       ...(options.signal ? { signal: options.signal } : {}),
     });
     return await runAgentTask({

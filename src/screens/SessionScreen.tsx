@@ -21,7 +21,6 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { newSessionId, type SessionTurn, type TurnStatus } from '@/lib/session';
 import { runAssistantTurn } from '@/lib/assistantRun';
-import { NoLlmKeyError } from '@/lib/autonomousRun';
 import { loadProviderKeys } from '@/lib/llmKeys';
 import {
   buildContext,
@@ -99,6 +98,7 @@ export default function SessionScreen({ route }: SessionScreenProps) {
   const client = useAgentClient();
   const { getToken } = useAuth();
   const providerOrder = useSettingsStore(s => s.providerOrder);
+  const agentMode = useSettingsStore(s => s.agentMode);
 
   const [input, setInput] = useState('');
   const [active, setActive] = useState<ActiveTurn | null>(null);
@@ -216,12 +216,7 @@ export default function SessionScreen({ route }: SessionScreenProps) {
       });
       commit({ ...current, response: result.summary, status: 'done' });
     } catch (err) {
-      const message =
-        err instanceof NoLlmKeyError
-          ? err.message
-          : err instanceof Error
-          ? err.message
-          : String(err);
+      const message = err instanceof Error ? err.message : String(err);
       commit({ ...current, status: 'failed', error: message });
     }
   }, [active, addTurn, client, getToken, input, maybeCompact, session?.summary, sessionId, turns]);
@@ -252,7 +247,7 @@ export default function SessionScreen({ route }: SessionScreenProps) {
       layout='list'
       footer={composer}
     >
-      {hasKey === false ? (
+      {agentMode === 'local' && hasKey === false ? (
         <View className='mb-4 p-3 rounded-lg bg-primary/10'>
           <Text size='sm'>{t('session.needKey')}</Text>
         </View>
