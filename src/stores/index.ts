@@ -1,6 +1,6 @@
 export {
   useSettingsStore,
   type ThemeMode,
-  type AgentMode,
+  type AiEngine,
 } from './settingsStore';
 export { useRunFlowStore } from './runFlowStore';

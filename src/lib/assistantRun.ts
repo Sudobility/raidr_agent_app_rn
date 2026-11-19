@@ -3,10 +3,11 @@
  *
  * Per message: understand the request to pick candidate sites, load the top
  * few sites' tools into one namespaced toolset, then drive the agentic loop
- * ({@link runAgentTask}) across them. Each model decision is cloud (server key)
- * or local (own key) per {@link resolveAgentStepCaller}; site calls use each
- * site's Keychain token, and the session keeps persistent memory. Prior context
- * is folded in via compaction so the prompt stays bounded.
+ * ({@link runAgentTask}) across them. Each model decision is routed by
+ * {@link resolveAgentStepCaller} (the raidr cloud server key, or a local Claude
+ * Code / Codex CLI — no user key); site calls use each site's Keychain token,
+ * and the session keeps persistent memory. Prior context is folded in via
+ * compaction so the prompt stays bounded.
  */
 
 import type {
@@ -17,7 +18,7 @@ import {
   DirectSiteConnector,
   type FetchLike,
 } from '@sudobility/raidr_agent_lib/runner';
-import { createSiteSource } from './localAgent';
+import { createSiteSource } from './siteCatalog';
 import { understandRequest } from './agentFlow';
 import { getDeviceContext } from './deviceContext';
 import { getSiteToken } from './secureStorage';
@@ -92,7 +93,7 @@ export async function runAssistantTurn(
   const executor = createMultiSiteExecutor(connector, auth);
 
   try {
-    const caller = await resolveAgentStepCaller(client, getToken, {
+    const caller = resolveAgentStepCaller(client, getToken, {
       ...(options.signal ? { signal: options.signal } : {}),
     });
     const result = await runAgentTask({

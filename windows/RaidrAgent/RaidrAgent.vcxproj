@@ -107,6 +107,7 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="AutolinkedNativeModules.g.h" />
     <ClInclude Include="DeviceLocationModule.h" />
+    <ClInclude Include="CliAgentModule.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="$(BuildingBlocksRNWindowsDir)WebAuthModule.h" />
@@ -115,6 +116,9 @@
     <ClCompile Include="RaidrAgent.cpp" />
     <ClCompile Include="AutolinkedNativeModules.g.cpp" />
     <ClCompile Include="DeviceLocationModule.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="CliAgentModule.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="$(BuildingBlocksRNWindowsDir)WebAuthModule.cpp">

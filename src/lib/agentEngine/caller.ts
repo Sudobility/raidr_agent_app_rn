@@ -1,68 +1,23 @@
 /**
- * The agentic model step — LOCAL route (the user's own key). Builds a prompt
- * (goal + tools + memory + observations), calls the user's LLM provider directly
- * on-device, and parses one structured decision back. Uses
- * `@sudobility/shapeshyft_engine/core`'s RN-safe `buildProviderRequest` +
- * `parseProviderResponse` — no server round-trip — exactly like local run mode.
+ * The shared prompt for the agentic model step: the system prompt, the per-turn
+ * user prompt (goal + tools + memory + observations), and a coercion from a raw
+ * model reply to a typed decision.
  *
- * The CLOUD route (server's key via the managed `agent` ShapeShyft endpoint, no
- * user key) lives in `src/lib/agentCaller.ts`, which also chooses between the
- * two from the `agentMode` setting. This module owns the local prompt; the
- * cloud prompt lives on the managed endpoint.
+ * Both routes reuse these — the cloud route (`src/lib/agentCaller.ts`, the
+ * server's key via the managed `agent` ShapeShyft endpoint) and the local CLI
+ * route (`src/lib/cliAgent.ts`, the user's Claude Code / Codex). Neither needs a
+ * user API key. The cloud endpoint owns its own prompt template on the service;
+ * the CLI embeds the required JSON shape itself. This module is the single
+ * place the request shape and the reply coercion are defined.
  */
 
 import {
-  buildProviderRequest,
-  parseProviderResponse,
-  type LlmProvider,
-} from '@sudobility/shapeshyft_engine/core';
-import type { LocalLlmProvider } from '@/config/llmProviders';
-import {
   type AgentPromptInput,
-  type AgentStepCaller,
   type AgentStepOutput,
   type AgentTool,
 } from './types';
 
-/** A provider the user has a key for, in the order to try them. */
-export interface ProviderCredential {
-  provider: LocalLlmProvider;
-  key: string;
-}
-
-const PROVIDER_TIMEOUT_MS = 90_000;
-
-/** JSON schema for one decision (the forced structured response). */
-const OUTPUT_SCHEMA: Record<string, unknown> = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    thought: {
-      type: 'string',
-      description: 'Brief reasoning for what to do next.',
-    },
-    action: {
-      type: 'object',
-      description: 'The single tool to call now. Omit when the task is done.',
-      properties: {
-        tool: { type: 'string' },
-        args: { type: 'object' },
-      },
-      required: ['tool', 'args'],
-    },
-    done: {
-      type: 'boolean',
-      description: 'true when the task is complete (or cannot proceed).',
-    },
-    respond: {
-      type: 'string',
-      description: 'Message to the user / summary of what was done, when done.',
-    },
-  },
-  required: ['thought', 'done'],
-};
-
-const SYSTEM_PROMPT = [
+export const SYSTEM_PROMPT = [
   'You are an autonomous agent that completes a task by calling tools one at a time.',
   'Each turn: think briefly, then either choose ONE action (a tool + its args) or set done=true with a respond message.',
   'Tools are marked [read] (safe), [write] (a real side effect — use sparingly and never repeat), or [engine].',
@@ -81,7 +36,7 @@ function describeTool(tool: AgentTool): string {
   return `- ${tool.name} [${tool.kind}]: ${tool.description}${args}`;
 }
 
-function buildPrompt(input: AgentPromptInput): string {
+export function buildPrompt(input: AgentPromptInput): string {
   const parts: string[] = [`GOAL: ${input.goal}`];
   if (input.context) {
     parts.push(`CONTEXT SO FAR:\n${input.context}`);
@@ -103,6 +58,29 @@ function buildPrompt(input: AgentPromptInput): string {
   return parts.join('\n\n');
 }
 
+/**
+ * Tool args reach us two ways: the CLI route emits them as a nested object,
+ * while the cloud endpoint's structured output encodes them as a JSON string
+ * (kept a string so its output schema stays strict — see the `raidr-agent-step`
+ * endpoint). Accept either; anything else, or an unparseable string, is no args.
+ */
+function coerceArgs(raw: unknown): Record<string, unknown> {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // Not JSON — treat as no args rather than throwing.
+    }
+  }
+  return {};
+}
+
 export function coerce(content: unknown): AgentStepOutput {
   const obj = (content ?? {}) as Record<string, unknown>;
   const rawAction = obj.action as Record<string, unknown> | undefined;
@@ -110,10 +88,7 @@ export function coerce(content: unknown): AgentStepOutput {
     rawAction && typeof rawAction.tool === 'string'
       ? {
           tool: rawAction.tool,
-          args:
-            rawAction.args && typeof rawAction.args === 'object'
-              ? (rawAction.args as Record<string, unknown>)
-              : {},
+          args: coerceArgs(rawAction.args),
         }
       : null;
   return {
@@ -121,89 +96,5 @@ export function coerce(content: unknown): AgentStepOutput {
     action,
     done: obj.done === true,
     ...(typeof obj.respond === 'string' ? { respond: obj.respond } : {}),
-  };
-}
-
-export interface AgentCallerOptions {
-  providers: ProviderCredential[];
-  fetch?: typeof fetch;
-  signal?: AbortSignal;
-}
-
-/** An {@link AgentStepCaller} backed by the user's own provider keys. */
-export function createAgentStepCaller(
-  options: AgentCallerOptions
-): AgentStepCaller {
-  const doFetch = options.fetch ?? globalThis.fetch;
-
-  const callOne = async (
-    input: AgentPromptInput,
-    { provider, key }: ProviderCredential
-  ): Promise<AgentStepOutput> => {
-    const request = buildProviderRequest({
-      provider: provider as LlmProvider,
-      systemPrompt: SYSTEM_PROMPT,
-      prompt: buildPrompt(input),
-      outputSchema: OUTPUT_SCHEMA,
-      temperature: 0,
-    });
-
-    const controller = new AbortController();
-    const onAbort = () => controller.abort();
-    options.signal?.addEventListener('abort', onAbort);
-    const timer = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
-    try {
-      const response = await doFetch(request.url, {
-        method: request.method,
-        headers: {
-          ...request.headers,
-          [request.auth.header]: `${request.auth.prefix}${key}`,
-        },
-        body: JSON.stringify(request.body),
-        signal: controller.signal,
-      });
-      const text = await response.text();
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      const parsed = parseProviderResponse(
-        request.provider as LlmProvider,
-        JSON.parse(text)
-      );
-      if (parsed.content == null || typeof parsed.content !== 'object') {
-        throw new Error('The model did not return a decision');
-      }
-      return coerce(parsed.content);
-    } finally {
-      clearTimeout(timer);
-      options.signal?.removeEventListener('abort', onAbort);
-    }
-  };
-
-  return {
-    async decide(input) {
-      if (options.providers.length === 0) {
-        throw new Error('No AI provider key is set up');
-      }
-      const failures: string[] = [];
-      for (const credential of options.providers) {
-        if (options.signal?.aborted) {
-          throw new Error('Cancelled');
-        }
-        try {
-          return await callOne(input, credential);
-        } catch (error) {
-          if (options.signal?.aborted) {
-            throw error;
-          }
-          failures.push(
-            `${credential.provider}: ${
-              error instanceof Error ? error.message : String(error)
-            }`
-          );
-        }
-      }
-      throw new Error(failures.join('; '));
-    },
   };
 }

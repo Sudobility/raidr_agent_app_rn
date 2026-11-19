@@ -48,6 +48,8 @@ export interface AgentSession {
   savedAgentId?: string;
   /** Rolling compacted summary of earlier turns (keeps the prompt bounded). */
   summary?: string;
+  /** How many leading turns the {@link summary} already folds in. */
+  summarizedCount?: number;
   turns: SessionTurn[];
   createdAt: string;
   updatedAt: string;
@@ -180,6 +182,11 @@ export function sanitizeSessions(value: unknown): AgentSession[] {
         ? { savedAgentId: item.savedAgentId }
         : {}),
       ...(typeof item.summary === 'string' ? { summary: item.summary } : {}),
+      ...(typeof item.summarizedCount === 'number' &&
+      Number.isFinite(item.summarizedCount) &&
+      item.summarizedCount >= 0
+        ? { summarizedCount: Math.floor(item.summarizedCount) }
+        : {}),
       turns: Array.isArray(item.turns)
         ? item.turns
             .map(sanitizeTurn)

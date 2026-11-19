@@ -5,13 +5,15 @@
  * - **Cloud** (default): the device posts the decision's dynamic inputs to
  *   `POST /agent/step`, which calls the managed `agent` ShapeShyft endpoint
  *   with the server's key and returns the structured decision. **No user key.**
- * - **Local**: only when the user picked local mode AND has a provider key —
- *   the decision is made on-device with that key (`createAgentStepCaller`).
+ * - **Local:** the decision is made by a locally-installed CLI coding agent
+ *   (Claude Code / Codex), picked by the `aiEngine` setting, via the native
+ *   bridge (`createCliAgentStepCaller`). Desktop only; auth is the terminal's.
  *
  * Either way the loop itself and every site call stay on the device (they need
  * the Keychain tokens); only this single model decision may be delegated. The
  * `agent` endpoint owns the cloud prompt + output schema (authored on the
- * ShapeShyft service); the local prompt lives in `agentEngine/caller.ts`.
+ * ShapeShyft service); the shared request shape + reply coercion live in
+ * `agentEngine/caller.ts`.
  */
 
 import type {
@@ -19,8 +21,9 @@ import type {
   TokenGetter,
 } from '@sudobility/raidr_agent_client';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { loadProviderKeys } from './llmKeys';
-import { coerce, createAgentStepCaller } from './agentEngine/caller';
+import { engineCliKind } from './aiEngine';
+import { coerce } from './agentEngine/caller';
+import { createCliAgentStepCaller } from './cliAgent';
 import type {
   AgentPromptInput,
   AgentStepCaller,
@@ -86,23 +89,23 @@ export function createCloudAgentStepCaller(
 }
 
 /**
- * The caller for an agentic run, per the `agentMode` setting. Local only when
- * the user chose it and has a key; otherwise cloud (server key, no user key).
+ * The caller for an agentic run, per the `aiEngine` setting: a local CLI engine
+ * (Claude Code / Codex) uses that CLI; the raidr engine uses the cloud route
+ * (server key, no user key). Raidr is the cross-platform default; a CLI engine
+ * is desktop only and surfaces a clear error if it isn't available.
  */
-export async function resolveAgentStepCaller(
+export function resolveAgentStepCaller(
   client: RaidrAgentClient,
   getToken: TokenGetter,
   options: { signal?: AbortSignal } = {}
-): Promise<AgentStepCaller> {
-  const { agentMode, providerOrder } = useSettingsStore.getState();
-  if (agentMode === 'local') {
-    const providers = await loadProviderKeys(providerOrder);
-    if (providers.length > 0) {
-      return createAgentStepCaller({
-        providers,
-        ...(options.signal ? { signal: options.signal } : {}),
-      });
-    }
+): AgentStepCaller {
+  const { aiEngine } = useSettingsStore.getState();
+  const cliKind = engineCliKind(aiEngine);
+  if (cliKind) {
+    return createCliAgentStepCaller({
+      kind: cliKind,
+      ...(options.signal ? { signal: options.signal } : {}),
+    });
   }
   return createCloudAgentStepCaller({
     client,

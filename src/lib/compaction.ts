@@ -3,17 +3,15 @@
  * carrying a rolling "essential info" summary plus the most recent exchanges,
  * instead of the whole transcript.
  *
- * The pure parts ({@link needsCompaction}, {@link buildContext}) are tested on
- * their own; {@link createSessionSummarizer} folds older exchanges into a new
- * summary with the user's own provider (same on-device path as the agent loop).
+ * The pure parts ({@link needsCompaction}, {@link buildContext},
+ * {@link planCompaction}, {@link turnsToItems}) are tested on their own;
+ * {@link createSummarizer} folds older exchanges into a new summary through the
+ * same engine as the agent loop (cloud server-key or a local CLI — no user key),
+ * so there is no separate AI path to configure.
  */
 
-import {
-  buildProviderRequest,
-  parseProviderResponse,
-  type LlmProvider,
-} from '@sudobility/shapeshyft_engine/core';
-import type { ProviderCredential } from './agentEngine/caller';
+import type { AgentStepCaller } from './agentEngine/types';
+import type { SessionTurn } from './session';
 
 /** One line of conversation for the context / summarizer. */
 export interface CompactItem {
@@ -49,78 +47,74 @@ export function buildContext(
     .join('\n');
 }
 
-const SUMMARY_SCHEMA: Record<string, unknown> = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    summary: {
-      type: 'string',
-      description:
-        'A concise running summary of the conversation that preserves names, ' +
-        'facts, decisions and anything needed to continue — a few sentences.',
-    },
-  },
-  required: ['summary'],
-};
+/** The two conversation lines (user + reply) one turn contributes. */
+export function turnsToItems(turns: readonly SessionTurn[]): CompactItem[] {
+  return turns.flatMap(turn => [
+    { role: 'user' as const, text: turn.request },
+    { role: 'agent' as const, text: turn.response ?? '(no reply)' },
+  ]);
+}
+
+/**
+ * The range of turn indices to fold into the summary now — everything older
+ * than the most recent `keepRecent` turns that is not already folded. Returns
+ * `null` when the summary is already caught up (so no model call is made).
+ *
+ * `from` starts at `summarizedCount` (not just the newly aged-out turn), so a
+ * transient summarizer failure leaves a turn temporarily out of context but a
+ * later success re-folds the whole gap — the summary never permanently loses a
+ * turn.
+ */
+export function planCompaction(
+  turnCount: number,
+  summarizedCount: number,
+  keepRecent = DEFAULT_KEEP_RECENT
+): { from: number; to: number } | null {
+  const to = Math.max(0, turnCount - keepRecent);
+  const from = Math.max(0, Math.min(summarizedCount, to));
+  return to > from ? { from, to } : null;
+}
 
 export interface SessionSummarizer {
   summarize(priorSummary: string, items: readonly CompactItem[]): Promise<string>;
 }
 
-/** A summarizer backed by the user's provider keys (fallthrough in order). */
-export function createSessionSummarizer(
-  providers: readonly ProviderCredential[],
-  deps: { fetch?: typeof fetch } = {}
-): SessionSummarizer {
-  const doFetch = deps.fetch ?? globalThis.fetch;
+/**
+ * A summarizer that folds exchanges into a running summary through the agent
+ * engine. It frames summarization as a no-tool agent step: the model is asked
+ * to finish (done=true) with the updated summary in `respond`, so the same
+ * cloud/CLI routing powers it with no extra endpoint or key. On an empty or
+ * unreadable reply it keeps the prior summary rather than lose context.
+ */
+export function createSummarizer(caller: AgentStepCaller): SessionSummarizer {
   return {
     async summarize(priorSummary, items) {
-      const prompt = [
-        priorSummary ? `Current summary:\n${priorSummary}` : 'No summary yet.',
-        'New exchanges to fold in:',
-        ...items.map(i => `${i.role === 'user' ? 'User' : 'Agent'}: ${i.text}`),
-        'Produce the updated running summary.',
-      ].join('\n\n');
-      const failures: string[] = [];
-      for (const { provider, key } of providers) {
-        try {
-          const request = buildProviderRequest({
-            provider: provider as LlmProvider,
-            systemPrompt:
-              'You compress a conversation into a short running summary without losing essentials.',
-            prompt,
-            outputSchema: SUMMARY_SCHEMA,
-            temperature: 0,
-          });
-          const response = await doFetch(request.url, {
-            method: request.method,
-            headers: {
-              ...request.headers,
-              [request.auth.header]: `${request.auth.prefix}${key}`,
-            },
-            body: JSON.stringify(request.body),
-          });
-          const text = await response.text();
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          const parsed = parseProviderResponse(
-            request.provider as LlmProvider,
-            JSON.parse(text)
-          );
-          const summary = (parsed.content as { summary?: unknown } | null)
-            ?.summary;
-          if (typeof summary === 'string' && summary.trim()) {
-            return summary.trim();
-          }
-          throw new Error('no summary returned');
-        } catch (error) {
-          failures.push(
-            `${provider}: ${error instanceof Error ? error.message : String(error)}`
-          );
-        }
+      if (items.length === 0) {
+        return priorSummary;
       }
-      throw new Error(failures.join('; '));
+      const exchanges = items
+        .map(i => `${i.role === 'user' ? 'User' : 'Agent'}: ${i.text}`)
+        .join('\n');
+      const goal = [
+        'Maintain a running summary of a conversation so it can continue with ' +
+          'full context while staying short.',
+        priorSummary
+          ? `Current running summary:\n${priorSummary}`
+          : 'There is no summary yet.',
+        `New exchanges to fold into it:\n${exchanges}`,
+        'Do not call any tool. Set done=true and put the updated running ' +
+          'summary — preserving names, facts, decisions and anything needed to ' +
+          'continue — in the respond field.',
+      ].join('\n\n');
+
+      const output = await caller.decide({
+        goal,
+        tools: [],
+        memoryDigest: '',
+        observations: [],
+      });
+      const next = (output.respond ?? '').trim() || (output.thought ?? '').trim();
+      return next || priorSummary;
     },
   };
 }

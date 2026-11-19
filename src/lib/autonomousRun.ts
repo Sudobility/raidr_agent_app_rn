@@ -19,7 +19,7 @@ import {
   DirectSiteConnector,
   type FetchLike,
 } from '@sudobility/raidr_agent_lib/runner';
-import { createSiteSource } from './localAgent';
+import { createSiteSource } from './siteCatalog';
 import { getSiteToken } from './secureStorage';
 import { getToolApiKey } from './toolApiKeys';
 import { createAgentMemory } from './agentMemory';
@@ -43,20 +43,10 @@ export function agentGoal(agent: SavedAgent): string {
 }
 
 /**
- * Kept for callers that still import it; no longer thrown now that the cloud
- * route needs no key. Local mode with no key silently falls back to cloud.
- */
-export class NoLlmKeyError extends Error {
-  constructor() {
-    super('Add your own AI provider key in Settings, or use cloud mode.');
-    this.name = 'NoLlmKeyError';
-  }
-}
-
-/**
  * Run one autonomous agent to completion. Throws if the agent has no site to
- * act on. The model decision is cloud (server key) or local (own key) per the
- * `agentMode` setting — no key is required.
+ * act on. The model decision is routed by {@link resolveAgentStepCaller} (the
+ * raidr cloud server key, or a local Claude Code / Codex CLI) — no key is
+ * required.
  */
 export async function runAutonomousAgent(
   client: RaidrAgentClient,
@@ -82,7 +72,7 @@ export async function runAutonomousAgent(
   });
   const session = await connector.open(apiHost, token);
   try {
-    const caller = await resolveAgentStepCaller(client, getToken, {
+    const caller = resolveAgentStepCaller(client, getToken, {
       ...(options.signal ? { signal: options.signal } : {}),
     });
     return await runAgentTask({

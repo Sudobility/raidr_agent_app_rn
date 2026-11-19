@@ -27,8 +27,15 @@ interface SessionsState {
     turnId: string,
     patch: Partial<SessionTurn>
   ) => void;
-  /** Set the rolling compacted summary for a session. */
-  setSummary: (sessionId: string, summary: string) => void;
+  /**
+   * Set the rolling compacted summary for a session and how many leading turns
+   * it now folds in.
+   */
+  setSummary: (
+    sessionId: string,
+    summary: string,
+    summarizedCount: number
+  ) => void;
   remove: (sessionId: string) => void;
   clear: () => void;
 }
@@ -92,10 +99,10 @@ export const useSessionsStore = create<SessionsState>()(
               : s
           ),
         })),
-      setSummary: (sessionId, summary) =>
+      setSummary: (sessionId, summary, summarizedCount) =>
         set(state => ({
           sessions: state.sessions.map(s =>
-            s.id === sessionId ? { ...s, summary } : s
+            s.id === sessionId ? { ...s, summary, summarizedCount } : s
           ),
         })),
       remove: sessionId =>

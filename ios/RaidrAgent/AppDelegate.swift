@@ -95,9 +95,18 @@ class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
 
   override func bundleURL() -> URL? {
 #if DEBUG
-    // Use port 8094 to avoid conflicts with other React Native apps.
-    RCTBundleURLProvider.sharedSettings().jsLocation = "localhost:8094"
-    return RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
+    let provider = RCTBundleURLProvider.sharedSettings()
+    // Metro dev-server host/port come from .env (METRO_HOST / METRO_PORT),
+    // injected into Info.plist at build time by the "Inject Metro Dev Server
+    // (.env)" build phase — nothing hardcoded here. On a physical device the
+    // host must be the dev Mac's LAN IP; the simulator can use localhost.
+    // Falls back to RN's default (localhost:8081) when the keys are absent.
+    if let host = Bundle.main.object(forInfoDictionaryKey: "MetroHost") as? String,
+       let port = Bundle.main.object(forInfoDictionaryKey: "MetroPort") as? String,
+       !host.isEmpty, !port.isEmpty {
+      provider.jsLocation = "\(host):\(port)"
+    }
+    return provider.jsBundleURL(forBundleRoot: "index")
 #else
     return Bundle.main.url(forResource: "main", withExtension: "jsbundle")
 #endif

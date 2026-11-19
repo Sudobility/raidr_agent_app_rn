@@ -13,6 +13,7 @@
 		514201582437B4B40078DB4F /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 514201572437B4B40078DB4F /* main.m */; };
 		863D24E8FBB26EBF4FB62261 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7140611CFB2DCA42257F5DAE /* PrivacyInfo.xcprivacy */; };
 		CA1100010000000000000001 /* DeviceLocationModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = CA1100010000000000000002 /* DeviceLocationModule.mm */; };
+		CA1100010000000000000005 /* CliAgentModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = CA1100010000000000000006 /* CliAgentModule.mm */; };
 		CA1100010000000000000003 /* CoreLocation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CA1100010000000000000004 /* CoreLocation.framework */; };
 		EFF987F1BAEAE06FC3B0E57B /* libPods-RaidrAgent-macOS.a in Frameworks */ = {isa = PBXBuildFile; fileRef = A0249D6806CCB89559912AD5 /* libPods-RaidrAgent-macOS.a */; };
 /* End PBXBuildFile section */
@@ -31,6 +32,7 @@
 		8D87842F1687940B4834338D /* Pods-RaidrAgent-macOS.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RaidrAgent-macOS.debug.xcconfig"; path = "Target Support Files/Pods-RaidrAgent-macOS/Pods-RaidrAgent-macOS.debug.xcconfig"; sourceTree = "<group>"; };
 		A0249D6806CCB89559912AD5 /* libPods-RaidrAgent-macOS.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-RaidrAgent-macOS.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		CA1100010000000000000002 /* DeviceLocationModule.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DeviceLocationModule.mm; sourceTree = "<group>"; };
+		CA1100010000000000000006 /* CliAgentModule.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = CliAgentModule.mm; sourceTree = "<group>"; };
 		CA1100010000000000000004 /* CoreLocation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreLocation.framework; path = System/Library/Frameworks/CoreLocation.framework; sourceTree = SDKROOT; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
@@ -64,6 +66,7 @@
 				5142014B2437B4B30078DB4F /* AppDelegate.h */,
 				5142014C2437B4B30078DB4F /* AppDelegate.mm */,
 				CA1100010000000000000002 /* DeviceLocationModule.mm */,
+				CA1100010000000000000006 /* CliAgentModule.mm */,
 				514201512437B4B40078DB4F /* Assets.xcassets */,
 				514201532437B4B40078DB4F /* Main.storyboard */,
 				514201562437B4B40078DB4F /* Info.plist */,
@@ -300,6 +303,7 @@
 				514201582437B4B40078DB4F /* main.m in Sources */,
 				5142014D2437B4B30078DB4F /* AppDelegate.mm in Sources */,
 				CA1100010000000000000001 /* DeviceLocationModule.mm in Sources */,
+				CA1100010000000000000005 /* CliAgentModule.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

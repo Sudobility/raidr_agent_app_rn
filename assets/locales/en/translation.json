@@ -201,7 +201,7 @@
     "working": "Working…",
     "failed": "That turn failed.",
     "noResults": "No results for that.",
-    "needKey": "Local mode is on but no AI key is set. Add one in Settings → API Keys, or switch to cloud mode.",
+    "cliUnavailable": "Local mode runs a desktop CLI agent (Claude Code / Codex), which isn't available here. Switch to cloud mode, or use the desktop app.",
     "turnCount": "{{count}} message",
     "turnCount_other": "{{count}} messages"
   },
@@ -258,7 +258,7 @@
     "account": "Account",
     "signInDescription": "Sync data across devices",
     "copyright": "2024 {{companyName}}",
-    "apiKeys": "API Keys",
+    "apiKeys": "AI",
     "apiKeysDescription": "Run requests with your own AI provider key",
     "agentMode": {
       "cloud": "Cloud",
@@ -349,18 +349,22 @@
     }
   },
   "apiKeys": {
-    "title": "API Keys",
-    "modeSection": "Mode",
-    "mode": {
-      "cloud": "Cloud",
-      "local": "Local"
+    "title": "AI",
+    "engineSection": "AI engine",
+    "engine": {
+      "raidr": "Raidr",
+      "claude": "Claude Code",
+      "codex": "Codex"
     },
-    "cloudDescription": "raidr runs your request. No key needed.",
-    "localDescription": "Your request is planned by your chosen AI provider using your own key. Site sign-ins stay on this device.",
-    "localDisabled": "Save a key for at least one provider below to turn on Local.",
-    "providersSection": "Providers",
-    "orderNote": "The top provider with a saved key is used; the others are fallbacks, tried in order. Drag the handle to reorder.",
-    "storageNote": "Keys are kept in this device's secure storage and only shown masked.",
+    "engineDesc": {
+      "raidr": "raidr runs your request in the cloud, billed to your credit balance. Works everywhere, no login beyond raidr.",
+      "claude": "Use your Claude Code subscription on this computer. Desktop only.",
+      "codex": "Use your Codex subscription on this computer. Desktop only."
+    },
+    "topUp": "Top up credit balance",
+    "topUpUnavailable": "Couldn't open the credits page.",
+    "cliLoginNote": "Make sure you're signed in: run `{{cmd}}` in Terminal once to log in.",
+    "cliDesktopOnly": "A CLI engine runs on the desktop app only. On this device, use Raidr.",
     "toolSection": "Tool API keys",
     "toolDescription": "Add a key from the tool provider's developer dashboard. Use the API host shown for that tool, such as places.googleapis.com. Keys stay in this device's secure storage.",
     "toolHostPlaceholder": "API host (e.g. places.googleapis.com)",

@@ -38,9 +38,6 @@ jest.mock('@sudobility/building_blocks_rn', () => ({
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
-jest.mock('@/hooks/useLlmKeys', () => ({
-  useLlmKeys: () => ({ effective: [], configured: [] }),
-}));
 // The login web view behind it needs native modules.
 jest.mock('../settings/AddCredentialModal', () => ({
   __esModule: true,

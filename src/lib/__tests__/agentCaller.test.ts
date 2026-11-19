@@ -1,8 +1,7 @@
 /**
  * Tests the agentic-decision routing: the cloud caller coerces the server's
- * decision and sends the dynamic inputs, and the resolver picks cloud vs local
- * from the agentMode setting — defaulting to cloud (no user key) and falling
- * back to cloud when local mode has no key.
+ * decision and sends the dynamic inputs, and the resolver picks cloud vs the
+ * local CLI agent from the agentMode setting (cloud is the default, no key).
  */
 
 import {
@@ -11,17 +10,21 @@ import {
 } from '../agentCaller';
 import type { AgentPromptInput } from '../agentEngine/types';
 
-jest.mock('@/lib/llmKeys', () => ({ loadProviderKeys: jest.fn() }));
 jest.mock('@/stores/settingsStore', () => ({
   useSettingsStore: { getState: jest.fn() },
 }));
+jest.mock('@/native/cliAgent', () => ({
+  getCliAgentBridge: jest.fn(),
+  cliAgentSupported: () => true,
+  CLI_AGENTS: ['claude', 'codex'],
+}));
 
-import { loadProviderKeys } from '@/lib/llmKeys';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { getCliAgentBridge } from '@/native/cliAgent';
 
-const mockLoadKeys = loadProviderKeys as jest.Mock;
 const mockGetState = (useSettingsStore as unknown as { getState: jest.Mock })
   .getState;
+const mockGetBridge = getCliAgentBridge as jest.Mock;
 
 const INPUT: AgentPromptInput = {
   goal: 'check r/sudoku',
@@ -46,8 +49,8 @@ function cloudClient(output: unknown) {
 const getToken = async () => 'tok';
 
 beforeEach(() => {
-  mockLoadKeys.mockReset();
   mockGetState.mockReset();
+  mockGetBridge.mockReset();
 });
 
 describe('createCloudAgentStepCaller', () => {
@@ -80,12 +83,41 @@ describe('createCloudAgentStepCaller', () => {
     ]);
   });
 
+  it('parses action args delivered as a JSON-encoded string', async () => {
+    // The managed `raidr-agent-step` endpoint keeps args a string so its
+    // structured output stays strict; the caller must decode it to an object.
+    const client = cloudClient({
+      thought: 'message bob',
+      action: {
+        tool: 'send_message',
+        args: '{"to":"bob","text":"hi"}',
+      },
+      done: false,
+    });
+    const caller = createCloudAgentStepCaller({ client, getToken });
+    const out = await caller.decide(INPUT);
+
+    expect(out.action).toEqual({
+      tool: 'send_message',
+      args: { to: 'bob', text: 'hi' },
+    });
+  });
+
+  it('falls back to empty args when the JSON string is unparseable', async () => {
+    const client = cloudClient({
+      thought: 'oops',
+      action: { tool: 'send_message', args: 'not json' },
+      done: false,
+    });
+    const caller = createCloudAgentStepCaller({ client, getToken });
+    const out = await caller.decide(INPUT);
+
+    expect(out.action).toEqual({ tool: 'send_message', args: {} });
+  });
+
   it('throws when the server reports failure', async () => {
     const client = {
-      invokeAgentStep: jest.fn(async () => ({
-        success: false,
-        error: 'boom',
-      })),
+      invokeAgentStep: jest.fn(async () => ({ success: false, error: 'boom' })),
     } as any;
     const caller = createCloudAgentStepCaller({ client, getToken });
     await expect(caller.decide(INPUT)).rejects.toThrow('boom');
@@ -93,48 +125,33 @@ describe('createCloudAgentStepCaller', () => {
 });
 
 describe('resolveAgentStepCaller', () => {
-  it('uses cloud by default (cloud mode, no user key needed)', async () => {
-    mockGetState.mockReturnValue({ agentMode: 'cloud', providerOrder: [] });
+  it('uses cloud for the raidr engine (no CLI)', async () => {
+    mockGetState.mockReturnValue({ aiEngine: 'raidr' });
     const client = cloudClient({ thought: '', action: null, done: true });
 
-    const caller = await resolveAgentStepCaller(client, getToken);
+    const caller = resolveAgentStepCaller(client, getToken);
     await caller.decide(INPUT);
 
     expect(client.invokeAgentStep).toHaveBeenCalledTimes(1);
-    expect(mockLoadKeys).not.toHaveBeenCalled();
+    expect(mockGetBridge).not.toHaveBeenCalled();
   });
 
-  it('falls back to cloud when local mode has no key', async () => {
-    mockGetState.mockReturnValue({ agentMode: 'local', providerOrder: [] });
-    mockLoadKeys.mockResolvedValue([]);
+  it('uses the local CLI agent for a CLI engine (never calls the server)', async () => {
+    mockGetState.mockReturnValue({ aiEngine: 'claude' });
+    const decision = JSON.stringify({ thought: 't', action: null, done: true });
+    const run = jest.fn(async () => ({
+      stdout: JSON.stringify({ result: decision }),
+      stderr: '',
+      exitCode: 0,
+    }));
+    mockGetBridge.mockReturnValue({ isAvailable: async () => true, run });
     const client = cloudClient({ thought: '', action: null, done: true });
 
-    const caller = await resolveAgentStepCaller(client, getToken);
-    await caller.decide(INPUT);
+    const caller = resolveAgentStepCaller(client, getToken);
+    const out = await caller.decide(INPUT);
 
-    expect(client.invokeAgentStep).toHaveBeenCalledTimes(1);
-  });
-
-  it('uses the device key when local mode has one (never calls the server)', async () => {
-    mockGetState.mockReturnValue({
-      agentMode: 'local',
-      providerOrder: ['openai'],
-    });
-    mockLoadKeys.mockResolvedValue([{ provider: 'openai', key: 'sk-x' }]);
-    const client = cloudClient({ thought: '', action: null, done: true });
-
-    const localFetch = jest.fn(async () => {
-      throw new Error('LOCAL_FETCH_HIT');
-    });
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = localFetch as unknown as typeof fetch;
-    try {
-      const caller = await resolveAgentStepCaller(client, getToken);
-      await expect(caller.decide(INPUT)).rejects.toThrow('LOCAL_FETCH_HIT');
-      expect(client.invokeAgentStep).not.toHaveBeenCalled();
-      expect(localFetch).toHaveBeenCalled();
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+    expect(out.done).toBe(true);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(client.invokeAgentStep).not.toHaveBeenCalled();
   });
 });

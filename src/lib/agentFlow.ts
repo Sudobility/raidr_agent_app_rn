@@ -1,12 +1,12 @@
 /**
- * The agent flow's server-or-device switch. Each step runs in the cloud
- * (raidr_agent_api) or, in local mode with at least one saved AI key, on this
- * device ({@link understandLocally}, {@link prepareLocally},
- * {@link startLocalRun}). Local mode is decided per call: with no saved key it
- * runs in the cloud.
+ * The agent (one-shot retrieval) flow's calls to raidr_agent_api. The
+ * understand → prepare → run pipeline always runs in the cloud (the raidr
+ * engine): the in-app own-key path was removed, and the local CLI engines
+ * (Claude Code / Codex) power the autonomous + long-lasting agent loop, not the
+ * structured retrieval pipeline.
  *
- * Every raidr_agent_client call of the cloud flow is made here, so a change in
- * the client's API touches this file only.
+ * Every raidr_agent_client call of the flow is made here, so a change in the
+ * client's API touches this file only.
  */
 
 import type {
@@ -21,14 +21,6 @@ import type {
   RunRequest,
 } from '@sudobility/raidr_agent_types';
 import type { BaseResponse } from '@sudobility/types';
-import { useSettingsStore } from '@/stores/settingsStore';
-import { loadProviderKeys } from './llmKeys';
-import {
-  prepareLocally,
-  startLocalRun,
-  understandLocally,
-  type ProviderCredential,
-} from './localAgent';
 import { startRun, type RunCallbacks, type RunHandle } from './runTransport';
 
 function unwrap<T>(response: BaseResponse<T>, what: string): T {
@@ -46,22 +38,12 @@ async function requiredToken(getToken: TokenGetter): Promise<string> {
   return token;
 }
 
-/** The providers to use when local mode is on and keys exist; `[]` means cloud. */
-export async function localProviders(): Promise<ProviderCredential[]> {
-  const { agentMode, providerOrder } = useSettingsStore.getState();
-  return agentMode === 'local' ? loadProviderKeys(providerOrder) : [];
-}
-
 /** Ask step: the intent and the ranked candidate sites (`POST /intent`). */
 export async function understandRequest(
   client: RaidrAgentClient,
   getToken: TokenGetter,
   body: IntentRequest
 ): Promise<IntentResponse> {
-  const providers = await localProviders();
-  if (providers.length > 0) {
-    return understandLocally(client, getToken, providers, body);
-  }
   return unwrap(
     await client.understandIntent(body, await requiredToken(getToken)),
     'Understanding the request'
@@ -74,25 +56,18 @@ export async function prepareRequest(
   getToken: TokenGetter,
   body: PrepareRequest
 ): Promise<PrepareResponse> {
-  const providers = await localProviders();
-  if (providers.length > 0) {
-    return prepareLocally(client, getToken, providers, body);
-  }
   return unwrap(
     await client.prepare(body, await requiredToken(getToken)),
     'Preparing the sites'
   );
 }
 
-/** Run step: stream the run (`POST /runs`, or on the device). */
+/** Run step: stream the run (`POST /runs`). */
 export async function startAgentRun(
   client: RaidrAgentClient,
   getToken: TokenGetter,
   runRequest: RunRequest,
   callbacks: RunCallbacks
 ): Promise<RunHandle> {
-  const providers = await localProviders();
-  return providers.length > 0
-    ? startLocalRun(client, getToken, providers, runRequest, callbacks)
-    : startRun(client, getToken, runRequest, callbacks);
+  return startRun(client, getToken, runRequest, callbacks);
 }

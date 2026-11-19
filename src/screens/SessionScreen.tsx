@@ -4,9 +4,10 @@
  * Always-on composer; each message runs the multi-site agentic loop
  * ({@link runAssistantTurn}) across whichever sites fit, streaming the
  * thought/action/observation transcript and a final reply. The prompt stays
- * bounded by compaction: a rolling summary covers older turns while the recent
- * ones are sent verbatim. The in-flight turn is held locally and committed to
- * the store when it finishes. Requires the user's own LLM key.
+ * bounded by compaction: once turns age out of the recent window they are
+ * folded into a rolling summary (through the chosen engine — cloud or CLI, no
+ * user key) while the recent ones are sent verbatim. The in-flight turn is held
+ * locally and committed to the store when it finishes.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -21,10 +22,14 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useSessionsStore } from '@/stores/sessionsStore';
 import { newSessionId, type SessionTurn, type TurnStatus } from '@/lib/session';
 import { runAssistantTurn } from '@/lib/assistantRun';
-import { loadProviderKeys } from '@/lib/llmKeys';
+import { resolveAgentStepCaller } from '@/lib/agentCaller';
+import { engineCliKind } from '@/lib/aiEngine';
+import { getCliAgentBridge } from '@/native/cliAgent';
 import {
   buildContext,
-  createSessionSummarizer,
+  createSummarizer,
+  planCompaction,
+  turnsToItems,
   DEFAULT_KEEP_RECENT,
   type CompactItem,
 } from '@/lib/compaction';
@@ -93,60 +98,57 @@ export default function SessionScreen({ route }: SessionScreenProps) {
 
   const session = useSessionsStore(s => s.sessions.find(x => x.id === sessionId));
   const addTurn = useSessionsStore(s => s.addTurn);
-  const setSummary = useSessionsStore(s => s.setSummary);
 
   const client = useAgentClient();
   const { getToken } = useAuth();
-  const providerOrder = useSettingsStore(s => s.providerOrder);
-  const agentMode = useSettingsStore(s => s.agentMode);
+  const aiEngine = useSettingsStore(s => s.aiEngine);
 
   const [input, setInput] = useState('');
   const [active, setActive] = useState<ActiveTurn | null>(null);
-  const [hasKey, setHasKey] = useState<boolean | null>(null);
   const cancelledRef = useRef(false);
+
+  // A local CLI engine runs on the desktop; warn if it can't be reached here.
+  const cliUnavailable =
+    engineCliKind(aiEngine) != null && getCliAgentBridge() == null;
 
   useEffect(() => {
     trackScreenView('Session');
-    loadProviderKeys(providerOrder)
-      .then(keys => setHasKey(keys.length > 0))
-      .catch(() => setHasKey(false));
     return () => {
       cancelledRef.current = true;
     };
-  }, [providerOrder]);
+  }, []);
 
   const turns = useMemo(() => session?.turns ?? [], [session]);
 
-  /** Fold the turn that just dropped out of the recent window into the summary. */
-  const maybeCompact = useCallback(
-    async (committed: SessionTurn[], priorSummary: string) => {
-      if (committed.length <= DEFAULT_KEEP_RECENT) {
-        return;
-      }
-      const dropped = committed[committed.length - DEFAULT_KEEP_RECENT - 1];
-      if (!dropped) {
-        return;
-      }
-      try {
-        const providers = await loadProviderKeys(providerOrder);
-        if (providers.length === 0) {
-          return;
-        }
-        const items: CompactItem[] = [
-          { role: 'user', text: dropped.request },
-          { role: 'agent', text: dropped.response ?? '(no reply)' },
-        ];
-        const summary = await createSessionSummarizer(providers).summarize(
-          priorSummary,
-          items
-        );
-        setSummary(sessionId, summary);
-      } catch {
-        // Compaction is best-effort; the recent turns still carry context.
-      }
-    },
-    [providerOrder, sessionId, setSummary]
-  );
+  // Fold turns that have aged out of the recent window into the rolling summary
+  // so the next prompt stays bounded. Routed through the same engine as the loop
+  // (cloud server-key or a local CLI); best-effort — a failure just defers the
+  // fold to the next successful turn.
+  const compact = useCallback(async () => {
+    const store = useSessionsStore.getState();
+    const current = store.sessions.find(s => s.id === sessionId);
+    if (!current) {
+      return;
+    }
+    const plan = planCompaction(
+      current.turns.length,
+      current.summarizedCount ?? 0
+    );
+    if (!plan) {
+      return;
+    }
+    const items = turnsToItems(current.turns.slice(plan.from, plan.to));
+    const caller = resolveAgentStepCaller(client, getToken, {});
+    try {
+      const summary = await createSummarizer(caller).summarize(
+        current.summary ?? '',
+        items
+      );
+      store.setSummary(sessionId, summary, plan.to);
+    } catch {
+      // Best-effort; the gap re-folds on the next successful turn.
+    }
+  }, [client, getToken, sessionId]);
 
   const send = useCallback(async () => {
     const raw = input.trim();
@@ -191,7 +193,9 @@ export default function SessionScreen({ route }: SessionScreenProps) {
       };
       addTurn(sessionId, turn);
       setActive(null);
-      void maybeCompact([...turns, turn], priorSummary);
+      if (final.status === 'done') {
+        void compact();
+      }
     };
 
     try {
@@ -219,7 +223,17 @@ export default function SessionScreen({ route }: SessionScreenProps) {
       const message = err instanceof Error ? err.message : String(err);
       commit({ ...current, status: 'failed', error: message });
     }
-  }, [active, addTurn, client, getToken, input, maybeCompact, session?.summary, sessionId, turns]);
+  }, [
+    active,
+    addTurn,
+    client,
+    compact,
+    getToken,
+    input,
+    session?.summary,
+    sessionId,
+    turns,
+  ]);
 
   const composer = (
     <View className='flex-row items-end gap-2 px-4 py-3 border-t border-foreground/10 bg-background'>
@@ -247,9 +261,9 @@ export default function SessionScreen({ route }: SessionScreenProps) {
       layout='list'
       footer={composer}
     >
-      {agentMode === 'local' && hasKey === false ? (
+      {cliUnavailable ? (
         <View className='mb-4 p-3 rounded-lg bg-primary/10'>
-          <Text size='sm'>{t('session.needKey')}</Text>
+          <Text size='sm'>{t('session.cliUnavailable')}</Text>
         </View>
       ) : null}
       {turns.length === 0 && !active ? (

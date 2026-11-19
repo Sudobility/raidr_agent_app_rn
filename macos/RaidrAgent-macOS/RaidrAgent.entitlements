@@ -2,8 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!--
+	  App Sandbox is OFF: the CliAgent native module launches the user's local
+	  Claude Code / Codex CLI with NSTask, which the sandbox categorically blocks
+	  (no entitlement re-enables launching external binaries). raidr agent ships
+	  via direct/notarized distribution, not the Mac App Store.
+	-->
 	<key>com.apple.security.app-sandbox</key>
-	<true/>
+	<false/>
 	<key>com.apple.security.files.user-selected.read-only</key>
 	<true/>
 	<key>com.apple.security.network.client</key>

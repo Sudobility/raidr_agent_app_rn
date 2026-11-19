@@ -17,32 +17,19 @@ beforeEach(async () => {
 });
 
 describe('settingsStore agent settings', () => {
-  it('defaults to cloud and the default provider order', () => {
-    const s = useSettingsStore.getState();
-    expect(s.agentMode).toBe('cloud');
-    expect(s.providerOrder).toEqual([
-      'openai',
-      'anthropic',
-      'deepseek',
-      'openrouter',
-    ]);
+  it('defaults to the raidr engine', () => {
+    expect(useSettingsStore.getState().aiEngine).toBe('raidr');
   });
 
-  it('sets mode and order, normalising the order', () => {
-    useSettingsStore.getState().setAgentMode('local');
-    useSettingsStore.getState().setProviderOrder(['deepseek', 'openai']);
-    const s = useSettingsStore.getState();
-    expect(s.agentMode).toBe('local');
-    expect(s.providerOrder).toEqual([
-      'deepseek',
-      'openai',
-      'anthropic',
-      'openrouter',
-    ]);
+  it('sets the AI engine, normalising unknown values', () => {
+    useSettingsStore.getState().setAiEngine('codex');
+    expect(useSettingsStore.getState().aiEngine).toBe('codex');
+    useSettingsStore.getState().setAiEngine('nope' as never);
+    expect(useSettingsStore.getState().aiEngine).toBe('raidr');
   });
 
   it('migrates version-0 state (theme only) to the new defaults', async () => {
-    useSettingsStore.getState().setAgentMode('local');
+    useSettingsStore.getState().setAiEngine('codex');
     await AsyncStorage.setItem(
       KEY,
       JSON.stringify({ state: { theme: 'dark' }, version: 0 })
@@ -50,45 +37,37 @@ describe('settingsStore agent settings', () => {
     await useSettingsStore.persist.rehydrate();
     const s = useSettingsStore.getState();
     expect(s.theme).toBe('dark');
-    expect(s.agentMode).toBe('cloud');
-    expect(s.providerOrder).toEqual([
-      'openai',
-      'anthropic',
-      'deepseek',
-      'openrouter',
-    ]);
+    expect(s.aiEngine).toBe('raidr');
   });
 
-  it('rehydrates current-version state', async () => {
+  it('maps a legacy cloud/local agentMode to the raidr engine', async () => {
     await AsyncStorage.setItem(
       KEY,
       JSON.stringify({
-        state: {
-          theme: 'light',
-          agentMode: 'local',
-          providerOrder: ['openrouter', 'anthropic', 'openai', 'deepseek'],
-        },
+        state: { theme: 'light', agentMode: 'local', providerOrder: [] },
         version: 1,
       })
     );
     await useSettingsStore.persist.rehydrate();
-    const s = useSettingsStore.getState();
-    expect(s.agentMode).toBe('local');
-    expect(s.providerOrder).toEqual([
-      'openrouter',
-      'anthropic',
-      'openai',
-      'deepseek',
-    ]);
+    expect(useSettingsStore.getState().aiEngine).toBe('raidr');
+  });
+
+  it('keeps a legacy codex cliAgent choice as the codex engine', async () => {
+    await AsyncStorage.setItem(
+      KEY,
+      JSON.stringify({
+        state: { theme: 'light', agentMode: 'local', cliAgent: 'codex' },
+        version: 3,
+      })
+    );
+    await useSettingsStore.persist.rehydrate();
+    expect(useSettingsStore.getState().aiEngine).toBe('codex');
   });
 
   it('sanitizes garbage', () => {
-    expect(
-      sanitizeSettings({ theme: 'neon', agentMode: 7, providerOrder: 'x' })
-    ).toEqual({
+    expect(sanitizeSettings({ theme: 'neon', aiEngine: 7 })).toEqual({
       theme: 'system',
-      agentMode: 'cloud',
-      providerOrder: ['openai', 'anthropic', 'deepseek', 'openrouter'],
+      aiEngine: 'raidr',
       grantedPermissions: [],
     });
   });
