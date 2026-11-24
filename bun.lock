@@ -33,7 +33,7 @@
         "@sudobility/raidr_agent_lib": "^0.0.25",
         "@sudobility/raidr_agent_types": "^0.0.28",
         "@sudobility/raidr_types": "^0.1.24",
-        "@sudobility/shapeshyft_engine": "^1.0.19",
+        "@sudobility/shapeshyft_engine": "^1.0.21",
         "@sudobility/signic_sdk": "^0.1.15",
         "@sudobility/types": "^1.11.2",
         "@tanstack/react-query": "~5.104.5",
@@ -758,7 +758,7 @@
 
     "@sudobility/raidr_types": ["@sudobility/raidr_types@0.1.24", "https://npm.pkg.github.com/download/@sudobility/raidr_types/0.1.24/5415037f1ed38b1db95ed5f5060620fa60005c24", { "peerDependencies": { "@sudobility/types": "^1.11.2", "zod": "^4.0.0" } }, "sha512-6YyH+m3cLy6ioa7Kv9DKhkTf1h3PRmwWOAplTaDzcHAthGlPoPBOlfXx2kZ+mHzWpxJGZQJk+BqQdEtQYfMe/A=="],
 
-    "@sudobility/shapeshyft_engine": ["@sudobility/shapeshyft_engine@1.0.19", "https://npm.pkg.github.com/download/@sudobility/shapeshyft_engine/1.0.19/07f49f6461ae8eb84294e71fa9640c5727424fe4", { "dependencies": { "@sudobility/types": "^1.11.2" }, "peerDependencies": { "@anthropic-ai/sdk": "^0.39.0", "@google/generative-ai": "^0.21.0", "groq-sdk": "^0.37.0", "openai": "^4.77.0", "sharp": "^0.35.4" } }, "sha512-lnrfgwtJIInXNn1IZ4NJdmpWfOv+ABvzBMVq/5TanXDsnybQordncufR9h61SLF6TYw7J4bxdyaqCD3kod9oLQ=="],
+    "@sudobility/shapeshyft_engine": ["@sudobility/shapeshyft_engine@1.0.21", "https://npm.pkg.github.com/download/@sudobility/shapeshyft_engine/1.0.21/8cd0a5d9e3e30397f7a83a439113e702242d4372", { "dependencies": { "@sudobility/types": "^1.11.2" }, "peerDependencies": { "@anthropic-ai/sdk": "^0.39.0", "@google/generative-ai": "^0.21.0", "groq-sdk": "^0.37.0", "openai": "^4.77.0", "sharp": "^0.35.4" } }, "sha512-0C6/CxSg21S23ll98ZcwHXW6yqR9887nHrZNQ2r0ex7nO7x6zK1a3wgfIc0zvHTOj+jOywNoUOw0K8mLQtItAQ=="],
 
     "@sudobility/signic_sdk": ["@sudobility/signic_sdk@0.1.15", "https://npm.pkg.github.com/download/@sudobility/signic_sdk/0.1.15/24855ff6c2c5e11929e0c559f3bc07a1834714ca", {}, "sha512-to4/6JyEBokgvHL+MfhEnf+at0zUSJMZ+3W/BZbF0swGos/oi+Wjjnjy6Ew/FD2ibocMT+Z8rds5OHVc5Tp9yA=="],
 

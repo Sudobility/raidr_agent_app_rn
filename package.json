@@ -54,7 +54,7 @@
     "@sudobility/raidr_agent_lib": "^0.0.25",
     "@sudobility/raidr_agent_types": "^0.0.28",
     "@sudobility/raidr_types": "^0.1.24",
-    "@sudobility/shapeshyft_engine": "^1.0.19",
+    "@sudobility/shapeshyft_engine": "^1.0.21",
     "@sudobility/signic_sdk": "^0.1.15",
     "@sudobility/types": "^1.11.2",
     "@tanstack/react-query": "~5.104.5",
