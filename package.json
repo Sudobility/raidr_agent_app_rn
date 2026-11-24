@@ -45,7 +45,7 @@
     "@scure/bip39": "~2.4.0",
     "@stardazed/streams-text-encoding": "~1.0.2",
     "@sudobility/auth_lib": "^0.0.134",
-    "@sudobility/building_blocks_rn": "^0.0.131",
+    "@sudobility/building_blocks_rn": "^0.0.132",
     "@sudobility/components-rn": "^1.0.162",
     "@sudobility/design": "^1.1.72",
     "@sudobility/di": "^1.5.91",
